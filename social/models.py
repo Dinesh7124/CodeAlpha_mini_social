@@ -65,6 +65,18 @@ class PasswordResetOTP(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.otp}"
 
+class Post(models.Model):
+    PRIVACY = (
+        ('public', 'Public'),
+        ('friends', 'Friends Only'),
+        ('private', 'Only Me'),
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField(blank=True)
+    image = models.ImageField(upload_to='posts/', blank=True, null=True)
+    video = models.FileField(upload_to='videos/', blank=True, null=True)
+    privacy = models.CharField(max_length=10, choices=PRIVACY, default='public')
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Post(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
@@ -199,6 +211,65 @@ class SavedPost(models.Model):
 
     def __str__(self):
         return f"{self.user.username} saved post {self.post.id}"
+
+class FriendRequest(models.Model):
+    STATUS = (
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    )
+    from_user = models.ForeignKey(User, related_name='sent_requests', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(User, related_name='received_requests', on_delete=models.CASCADE)
+    status = models.CharField(max_length=10, choices=STATUS, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('from_user', 'to_user')
+
+    def __str__(self):
+        return f"{self.from_user} → {self.to_user} ({self.status})"
+
+
+class Friendship(models.Model):
+    user1 = models.ForeignKey(User, related_name='friends1', on_delete=models.CASCADE)
+    user2 = models.ForeignKey(User, related_name='friends2', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user1', 'user2')
+
+    @staticmethod
+    def are_friends(a, b):
+        return Friendship.objects.filter(
+            models.Q(user1=a, user2=b) | models.Q(user1=b, user2=a)
+        ).exists()
+
+class Conversation(models.Model):
+    user1 = models.ForeignKey(User, related_name='conv1', on_delete=models.CASCADE)
+    user2 = models.ForeignKey(User, related_name='conv2', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user1', 'user2')
+
+    @staticmethod
+    def get_or_create_between(a, b):
+        # always store smaller id first
+        u1, u2 = (a, b) if a.id < b.id else (b, a)
+        obj, _ = Conversation.objects.get_or_create(user1=u1, user2=u2)
+        return obj
+
+
+class Message(models.Model):
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField(blank=True)
+    image = models.ImageField(upload_to='chat/', blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
 
 
 @receiver(post_save, sender=User)

@@ -12,6 +12,12 @@ urlpatterns = [
     path('search/', views.search, name='search'),
     path('api/reaction/<int:post_id>/', views.toggle_reaction, name='toggle_reaction'),
     # Messages / Chat
+    path('post/<int:post_id>/like/', views.toggle_like, name='toggle_like'),
+    path('post/<int:post_id>/comment/', views.add_comment, name='add_comment'),
+    path('comment/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
+    path('friend-request/send/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
+    path('friend-request/accept/<int:req_id>/', views.accept_friend_request, name='accept_friend_request'),
+    path('friend-request/reject/<int:req_id>/', views.reject_friend_request, name='reject_friend_request'),
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('reset-password/', views.reset_password_view, name='reset_password'),
@@ -19,7 +25,10 @@ urlpatterns = [
     path('chat/<str:username>/', views.chat, name='chat'),
     path('api/message/<str:username>/send/', views.send_message, name='send_message'),
     path('api/message/<str:username>/new/', views.get_new_messages, name='get_new_messages'),
-
+    path('inbox/', views.inbox, name='inbox'),
+    path('chat/start/<int:user_id>/', views.start_chat, name='start_chat'),
+    path('chat/<int:conv_id>/', views.chat_room, name='chat_room'),
+    path('chat/<int:conv_id>/send/', views.send_message, name='send_message'),
     # Stories
     path('stories/', views.stories_view, name='stories'),
     path('stories/create/', views.create_story, name='create_story'),

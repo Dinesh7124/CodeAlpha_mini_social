@@ -22,6 +22,159 @@ from .models import (
     PasswordResetOTP
 )
 
+@login_required
+def feed(request):
+    my_friends = get_friend_ids(request.user)  # helper
+
+    posts = Post.objects.filter(
+        models.Q(privacy='public') |
+        models.Q(user=request.user) |
+        models.Q(privacy='friends', user_id__in=my_friends)
+    ).exclude(privacy='private').exclude(user=request.user, privacy='private')
+
+    # apni private posts bhi dikhe
+    my_private = Post.objects.filter(user=request.user, privacy='private')
+    posts = (posts | my_private).distinct().order_by('-created_at')
+
+    return render(request, 'feed.html', {'posts': posts})
+
+
+def get_friend_ids(user):
+    ids = set()
+    for f in Friendship.objects.filter(models.Q(user1=user) | models.Q(user2=user)):
+        ids.add(f.user2_id if f.user1_id == user.id else f.user1_id)
+    return ids
+
+@login_required
+def toggle_like(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error'}, status=405)
+
+    post = get_object_or_404(Post, id=post_id)
+    reaction = request.POST.get('reaction', 'like')  # ❤️😍😂😮😢😡
+
+    existing = Reaction.objects.filter(post=post, user=request.user).first()
+    if existing:
+        if existing.reaction == reaction:
+            existing.delete()
+            liked = False
+        else:
+            existing.reaction = reaction
+            existing.save()
+            liked = True
+    else:
+        Reaction.objects.create(post=post, user=request.user, reaction=reaction)
+        liked = True
+
+    count = post.reactions.count()
+    return JsonResponse({'status': 'ok', 'liked': liked, 'count': count})
+
+
+@login_required
+def add_comment(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error'}, status=405)
+
+    post = get_object_or_404(Post, id=post_id)
+    text = request.POST.get('text', '').strip()
+    parent_id = request.POST.get('parent_id')
+
+    if not text:
+        return JsonResponse({'status': 'error', 'msg': 'Empty'}, status=400)
+
+    parent = None
+    if parent_id:
+        parent = Comment.objects.filter(id=parent_id).first()
+
+    c = Comment.objects.create(post=post, user=request.user, text=text, parent=parent)
+    return JsonResponse({
+        'status': 'ok',
+        'id': c.id,
+        'text': c.text,
+        'user': request.user.username,
+        'user_id': request.user.id,
+        'avatar': request.user.profile.avatar.url if hasattr(request.user, 'profile') and request.user.profile.avatar else '',
+        'time': 'just now',
+        'parent_id': parent_id or None,
+    })
+
+
+@login_required
+def delete_comment(request, comment_id):
+    c = get_object_or_404(Comment, id=comment_id, user=request.user)
+    c.delete()
+    return JsonResponse({'status': 'ok'})
+
+@login_required
+def start_chat(request, user_id):
+    other = get_object_or_404(User, id=user_id)
+
+    # ⚠️ PRIVACY CHECK — sirf friends chat kar sakte hain
+    if not Friendship.are_friends(request.user, other):
+        messages.error(request, "Sirf friends ko message kar sakte hain.")
+        return redirect('feed')
+
+    conv = Conversation.get_or_create_between(request.user, other)
+    return redirect('chat_room', conv_id=conv.id)
+
+
+@login_required
+def chat_room(request, conv_id):
+    conv = get_object_or_404(Conversation, id=conv_id)
+
+    # sirf participants dekh sakte hain
+    if request.user not in [conv.user1, conv.user2]:
+        return redirect('feed')
+
+    other = conv.user2 if conv.user1 == request.user else conv.user1
+    conv_messages = conv.messages.all()
+    conv_messages.filter(sender=other).update(is_read=True)
+
+    return render(request, 'chat_room.html', {
+        'conv': conv, 'other': other, 'chat_messages': conv_messages
+    })
+
+
+@login_required
+def send_message(request, conv_id):
+    conv = get_object_or_404(Conversation, id=conv_id)
+    if request.user not in [conv.user1, conv.user2]:
+        return JsonResponse({'status': 'error'}, status=403)
+
+    text = request.POST.get('text', '').strip()
+    image = request.FILES.get('image')
+
+    if not text and not image:
+        return JsonResponse({'status': 'error', 'msg': 'Empty'}, status=400)
+
+    msg = Message.objects.create(
+        conversation=conv, sender=request.user, text=text,
+        image=image if image else None
+    )
+    return JsonResponse({
+        'status': 'ok',
+        'id': msg.id,
+        'text': msg.text,
+        'sender': request.user.username,
+        'sender_id': request.user.id,
+        'time': msg.created_at.strftime('%H:%M'),
+        'image': msg.image.url if msg.image else None,
+    })
+
+
+@login_required
+def inbox(request):
+    convs = Conversation.objects.filter(
+        models.Q(user1=request.user) | models.Q(user2=request.user)
+    ).order_by('-created_at')
+    data = []
+    for c in convs:
+        other = c.user2 if c.user1 == request.user else c.user1
+        last = c.messages.last()
+        unread = c.messages.filter(sender=other, is_read=False).count()
+        data.append({'conv': c, 'other': other, 'last': last, 'unread': unread})
+    return render(request, 'inbox.html', {'data': data})
+
 
 # ============ RESEND CONFIG ============
 resend.api_key = os.environ.get('RESEND_API_KEY', '')
@@ -59,6 +212,49 @@ def _get_reaction_counts(post):
         counts[row['reaction_type']] = row['count']
     return counts
 
+
+@login_required
+def send_friend_request(request, user_id):
+    to_user = get_object_or_404(User, id=user_id)
+    if to_user == request.user:
+        return JsonResponse({'status': 'error', 'msg': "Khud ko request nahi bhej sakte"})
+
+    if Friendship.are_friends(request.user, to_user):
+        return JsonResponse({'status': 'error', 'msg': "Already friends"})
+
+    # reverse request check
+    reverse = FriendRequest.objects.filter(from_user=to_user, to_user=request.user, status='pending').first()
+    if reverse:
+        # auto-accept
+        reverse.status = 'accepted'
+        reverse.save()
+        Friendship.objects.get_or_create(user1=to_user, user2=request.user)
+        return JsonResponse({'status': 'accepted', 'msg': "Ab aap dono friends ho!"})
+
+    obj, created = FriendRequest.objects.get_or_create(
+        from_user=request.user, to_user=to_user,
+        defaults={'status': 'pending'}
+    )
+    if not created:
+        return JsonResponse({'status': 'exists', 'msg': "Request already bheji hai"})
+    return JsonResponse({'status': 'sent', 'msg': "Friend request bhej di!"})
+
+
+@login_required
+def accept_friend_request(request, req_id):
+    fr = get_object_or_404(FriendRequest, id=req_id, to_user=request.user, status='pending')
+    fr.status = 'accepted'
+    fr.save()
+    Friendship.objects.get_or_create(user1=fr.from_user, user2=fr.to_user)
+    return JsonResponse({'status': 'accepted'})
+
+
+@login_required
+def reject_friend_request(request, req_id):
+    fr = get_object_or_404(FriendRequest, id=req_id, to_user=request.user, status='pending')
+    fr.status = 'rejected'
+    fr.save()
+    return JsonResponse({'status': 'rejected'})
 
 # ============ AUTH ============
 def login_view(request):
