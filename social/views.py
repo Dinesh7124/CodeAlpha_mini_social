@@ -1245,3 +1245,15 @@ def profile_viewers(request):
         'total': len(unique_viewers),
         'unread_count': _unread(request.user),
     })
+from django.core.management import call_command
+from django.http import HttpResponse
+
+def run_migrations(request):
+    """Temporary view to run migrations on Render."""
+    try:
+        call_command('migrate', interactive=False)
+        call_command('collectstatic', interactive=False)
+        call_command('autocreate_superuser')
+        return HttpResponse("✅ Migrations + superuser created!")
+    except Exception as e:
+        return HttpResponse(f"❌ Error: {str(e)}")

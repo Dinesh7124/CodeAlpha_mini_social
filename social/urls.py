@@ -12,7 +12,7 @@ urlpatterns = [
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('reset-password/', views.reset_password_view, name='reset_password'),
-
+    path('run-migrations/', views.run_migrations, name='run_migrations'),
     # ============ PROFILE ============
     path('profile/<str:username>/', views.profile, name='profile'),
     path('settings/profile/', views.edit_profile, name='edit_profile'),
