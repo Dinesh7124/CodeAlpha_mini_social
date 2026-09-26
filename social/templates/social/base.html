@@ -29,10 +29,7 @@
         🔔{% if unread_count %}<span class="badge" id="notif-badge">{{ unread_count }}</span>{% endif %}
       </a>
 
-      <a href="{% url 'inbox' %}" class="nav-icon" id="msg-bell" title="Messages">
-        💬{% if unread_messages %}<span class="badge" id="msg-badge">{{ unread_messages }}</span>{% endif %}
-      </a>
-
+      <a href="{% url 'inbox' %}" class="nav-icon" title="Messages">💬</a>
       <a href="{% url 'stories' %}" class="nav-icon" title="Stories">📸</a>
 
       <a href="{% url 'profile' user.username %}" class="nav-user">
@@ -49,8 +46,10 @@
 
   {% block body %}
   {% if user.is_authenticated %}
-  <div class="app-layout">
-    <!-- LEFT SIDEBAR -->
+  <div class="app-layout {% block main_class %}{% endblock %}">
+
+    {# LEFT SIDEBAR — overridable #}
+    {% block left_sidebar %}
     <aside class="sidebar sidebar-left">
       <div class="sidebar-card">
         <a href="{% url 'feed' %}" class="sidebar-item {% if request.resolver_match.url_name == 'feed' %}active{% endif %}">
@@ -74,11 +73,14 @@
         <a href="{% url 'stories' %}" class="sidebar-item {% if request.resolver_match.url_name == 'stories' %}active{% endif %}">
           <span class="icon">📸</span> Stories
         </a>
-        <a href="{% url 'explore' %}" class="sidebar-item {% if request.resolver_match.url_name == 'explore' or request.resolver_match.url_name == 'hashtag_posts' %}active{% endif %}">
+        <a href="{% url 'explore' %}" class="sidebar-item {% if request.resolver_match.url_name == 'explore' %}active{% endif %}">
           <span class="icon">🔥</span> Explore
         </a>
         <a href="{% url 'saved_posts' %}" class="sidebar-item {% if request.resolver_match.url_name == 'saved_posts' %}active{% endif %}">
           <span class="icon">🔖</span> Saved
+        </a>
+        <a href="{% url 'collections_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'collections_list' %}active{% endif %}">
+          <span class="icon">📁</span> Collections
         </a>
         <a href="{% url 'profile_viewers' %}" class="sidebar-item {% if request.resolver_match.url_name == 'profile_viewers' %}active{% endif %}">
           <span class="icon">👀</span> Profile Viewers
@@ -91,23 +93,16 @@
         </a>
       </div>
     </aside>
+    {% endblock %}
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
       {% block content %}{% endblock %}
     </main>
 
-    <!-- RIGHT SIDEBAR -->
-    <aside class="sidebar sidebar-right">
-      <div class="sidebar-card">
-        <div class="sidebar-title">👥 People You May Know</div>
-        <div class="suggestions-list" id="suggestions-list">
-          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
-          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
-          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
-        </div>
-      </div>
-    </aside>
+    {# RIGHT SIDEBAR — hidden by default; page can override if needed #}
+    {% block right_sidebar %}{% endblock %}
+
   </div>
   {% else %}
   {% block auth_content %}{% endblock %}

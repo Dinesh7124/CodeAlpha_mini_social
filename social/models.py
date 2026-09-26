@@ -66,6 +66,23 @@ class PasswordResetOTP(models.Model):
         return f"{self.user.username} - {self.otp}"
 
 
+# ==================== POST DRAFT ====================
+class PostDraft(models.Model):
+    """Save post as draft - complete later."""
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drafts')
+    content = models.TextField(blank=True, max_length=1000)
+    image = models.ImageField(upload_to='drafts/', blank=True, null=True)
+    video = models.FileField(upload_to='drafts/videos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.author.username}: {self.content[:30]}"
+
+
 # ==================== POST ====================
 class Post(models.Model):
     PRIVACY = (
@@ -368,6 +385,41 @@ class ProfileView(models.Model):
 
     def __str__(self):
         return f"{self.viewer.username} → {self.viewed.username}"
+
+
+# ==================== BOOKMARK COLLECTION ====================
+class Collection(models.Model):
+    """Bookmark collection - organize saved posts into folders."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collections')
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, max_length=300)
+    is_public = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('user', 'name')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
+
+    @property
+    def post_count(self):
+        return self.items.count()
+
+
+class CollectionItem(models.Model):
+    """Post inside a collection."""
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE, related_name='items')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='in_collections')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-added_at']
+        unique_together = ('collection', 'post')
+
+    def __str__(self):
+        return f"{self.collection.name} - {self.post.id}"
 
 
 # ==================== SIGNAL ====================

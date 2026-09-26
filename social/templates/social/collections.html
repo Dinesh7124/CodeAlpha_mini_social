@@ -1,0 +1,126 @@
+{% extends 'social/base.html' %}
+{% block title %}Collections — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
+    <h2 style="font-size:1.5rem;font-weight:900;display:flex;align-items:center;gap:.5rem;">
+      🔖 My Collections
+    </h2>
+    <button onclick="openCreateCollection()" class="btn btn-primary">
+      ➕ New Collection
+    </button>
+  </div>
+
+  {% if collections %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
+    {% for c in collections %}
+    <div style="background:var(--bg);border-radius:14px;padding:1.25rem;border:1px solid var(--border);transition:all .25s;"
+         onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-3px)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.transform='translateY(0)'">
+      <a href="{% url 'collection_detail' c.id %}" style="text-decoration:none;color:var(--text);display:block;">
+        <div style="font-size:2rem;margin-bottom:.5rem;">📁</div>
+        <div style="font-weight:800;font-size:1.05rem;margin-bottom:.25rem;">{{ c.name }}</div>
+        {% if c.description %}
+        <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:.5rem;">{{ c.description|truncatechars:60 }}</div>
+        {% endif %}
+        <div style="color:var(--text-muted);font-size:.8rem;">
+          {{ c.post_count }} post{{ c.post_count|pluralize }}
+          {% if c.is_public %} · 🌍 Public{% else %} · 🔒 Private{% endif %}
+        </div>
+      </a>
+      <div style="display:flex;gap:.4rem;margin-top:.75rem;">
+        <a href="{% url 'collection_detail' c.id %}" class="btn btn-secondary" style="flex:1;padding:.4rem;font-size:.82rem;text-decoration:none;text-align:center;">
+          Open
+        </a>
+        <button onclick="deleteCollection({{ c.id }})" class="btn btn-danger" style="padding:.4rem .75rem;font-size:.82rem;">
+          🗑️
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" style="text-align:center;padding:3rem 1.5rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">📁</div>
+    <h3 style="font-size:1.25rem;font-weight:900;margin-bottom:.5rem;">No collections yet</h3>
+    <p style="color:var(--text-muted);margin-bottom:1rem;">Create folders to organize your saved posts.</p>
+    <button onclick="openCreateCollection()" class="btn btn-primary">➕ Create First Collection</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Create Collection Modal -->
+<div id="createCollectionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:var(--card);border-radius:20px;width:100%;max-width:440px;padding:1.5rem;">
+    <h3 style="font-size:1.2rem;font-weight:900;margin-bottom:1rem;">📁 New Collection</h3>
+    <form onsubmit="createCollection(event)">
+      <input type="text" name="name" placeholder="Collection name (e.g., Recipes, Travel)" required maxlength="100"
+             style="width:100%;padding:.85rem 1rem;border:1.5px solid var(--border);border-radius:12px;font-family:inherit;font-size:.92rem;background:var(--bg);color:var(--text);outline:none;margin-bottom:.75rem;">
+      <textarea name="description" placeholder="Description (optional)" maxlength="300" rows="2"
+                style="width:100%;padding:.85rem 1rem;border:1.5px solid var(--border);border-radius:12px;font-family:inherit;font-size:.92rem;background:var(--bg);color:var(--text);outline:none;resize:none;margin-bottom:.75rem;"></textarea>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;font-size:.9rem;">
+        <input type="checkbox" name="is_public" value="true">
+        🌍 Make this collection public
+      </label>
+      <div style="display:flex;gap:.5rem;">
+        <button type="button" onclick="closeCreateCollection()" class="btn btn-secondary" style="flex:1;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCreateCollection() {
+  document.getElementById('createCollectionModal').style.display = 'flex';
+}
+function closeCreateCollection() {
+  document.getElementById('createCollectionModal').style.display = 'none';
+}
+
+async function createCollection(e) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.name.value.trim();
+  const description = form.description.value.trim();
+  const is_public = form.is_public.checked;
+
+  try {
+    const res = await fetch('/api/collections/create/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ name, description, is_public })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('✅ Collection created!');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('❌ ' + (data.error || 'Failed'));
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+
+async function deleteCollection(id) {
+  if (!confirm('Delete this collection?')) return;
+  try {
+    const res = await fetch(`/api/collections/${id}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF }
+    });
+    if (res.ok) {
+      showToast('🗑️ Collection deleted');
+      setTimeout(() => location.reload(), 600);
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+</script>
+{% endblock %}

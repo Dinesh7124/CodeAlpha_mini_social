@@ -1,44 +1,55 @@
 {% for post in posts %}
-<div class="post" data-post-id="{{ post.id }}">
-  <div class="post-header">
+<article class="post" data-post-id="{{ post.id }}">
+
+  <header class="post-header">
     <a href="{% url 'profile' post.author.username %}" class="avatar">
       {% if post.author.profile.avatar %}
-        <img src="{{ post.author.profile.avatar.url }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+        <img src="{{ post.author.profile.avatar.url }}" alt="{{ post.author.username }}">
       {% else %}
         {{ post.author.username|first }}
       {% endif %}
     </a>
+
     <div class="post-meta">
       <a href="{% url 'profile' post.author.username %}" class="author">{{ post.author.username }}</a>
       <span class="time">{{ post.created_at|date:"M d, H:i" }}</span>
     </div>
+
     {% if post.author == user %}
     <div class="post-menu">
-      <button class="menu-btn">⋯</button>
-      <div class="menu-dropdown">
+      <button class="menu-btn" onclick="togglePostMenu(event, {{ post.id }})" aria-label="Post options">⋯</button>
+      <div class="menu-dropdown" id="menu-{{ post.id }}">
         <a href="#" class="edit-post" data-post-id="{{ post.id }}">✏️ Edit</a>
         <a href="#" class="delete-post" data-post-id="{{ post.id }}">🗑️ Delete</a>
       </div>
     </div>
     {% endif %}
-  </div>
+  </header>
 
-  {% if post.content %}<p class="post-content">{{ post.content }}</p>{% endif %}
-  {% if post.image %}<img src="{{ post.image.url }}" class="post-image" loading="lazy">{% endif %}
-  {% if post.video %}
-  <video src="{{ post.video.url }}" controls class="post-image" preload="metadata"
-         style="max-height:600px;background:#000;width:100%;"></video>
+  {% if post.content %}
+  <div class="post-content">{{ post.content }}</div>
   {% endif %}
 
-  <div class="post-actions">
+  {% if post.image %}
+  <img src="{{ post.image.url }}" class="post-image" loading="lazy" alt="Post image">
+  {% endif %}
+
+  {% if post.video %}
+  <video src="{{ post.video.url }}" controls class="post-image" preload="metadata"></video>
+  {% endif %}
+
+  <footer class="post-actions">
+
+    <!-- ============ LIKE / REACTION ============ -->
     <div class="reaction-wrapper">
-      <button class="action-btn reaction-btn" data-post-id="{{ post.id }}">
-        <span class="reaction-icon">❤️</span>
+      <button class="action-btn reaction-btn" data-post-id="{{ post.id }}" aria-label="React to post">
+        <span class="reaction-icon">👍</span>
         <span class="reaction-count">{{ post.reactions.count }}</span>
       </button>
+
       <div class="reaction-picker" id="picker-{{ post.id }}">
-        <button class="reaction-option" data-reaction="like" title="Like">❤️</button>
-        <button class="reaction-option" data-reaction="love" title="Love">😍</button>
+        <button class="reaction-option" data-reaction="like" title="Like">👍</button>
+        <button class="reaction-option" data-reaction="love" title="Love">❤️</button>
         <button class="reaction-option" data-reaction="haha" title="Haha">😂</button>
         <button class="reaction-option" data-reaction="wow" title="Wow">😮</button>
         <button class="reaction-option" data-reaction="sad" title="Sad">😢</button>
@@ -46,19 +57,29 @@
       </div>
     </div>
 
-    <button class="action-btn comment-toggle">💬 <span>{{ post.comments_count }}</span></button>
-
-    <!-- ✅ SHARE BUTTON -->
-    <button class="action-btn share-btn" onclick="openShareModal({{ post.id }})">
-      <span>↗️</span> Share
+    <!-- ============ COMMENT ============ -->
+    <button class="action-btn comment-toggle" data-post-id="{{ post.id }}" aria-label="Comment">
+      <span class="reaction-icon">💬</span>
+      <span class="reaction-count">{{ post.comments_count }}</span>
     </button>
 
-    <button class="action-btn save-btn {% if post.id in saved_ids %}saved{% endif %}" data-post-id="{{ post.id }}">
-      {% if post.id in saved_ids %}🔖{% else %}📑{% endif %} <span>Save</span>
+    <!-- ============ SHARE ============ -->
+    <button class="action-btn share-btn" onclick="openShareModal({{ post.id }})" aria-label="Share">
+      <span class="reaction-icon">📤</span>
+      <span>Share</span>
     </button>
-  </div>
 
-  <div class="comments">
+    <!-- ============ SAVE ============ -->
+    <button class="action-btn save-btn {% if post.id in saved_ids %}saved{% endif %}"
+            data-post-id="{{ post.id }}"
+            aria-label="Save">
+      <span class="reaction-icon">{% if post.id in saved_ids %}🔖{% else %}📑{% endif %}</span>
+      <span>Save</span>
+    </button>
+
+  </footer>
+
+  <section class="comments">
     {% for c in post.top_level_comments %}
     <div class="comment" data-comment-id="{{ c.id }}">
       <strong>{{ c.author.username }}</strong>{{ c.content }}
@@ -70,10 +91,12 @@
       {% endfor %}
     </div>
     {% endfor %}
+
     <form class="comment-form" data-post-id="{{ post.id }}">
-      <input type="text" placeholder="Write a comment..." required maxlength="500">
+      <input type="text" placeholder="Write a comment..." required maxlength="500" aria-label="Write a comment">
       <button type="submit">Send</button>
     </form>
-  </div>
-</div>
+  </section>
+
+</article>
 {% endfor %}

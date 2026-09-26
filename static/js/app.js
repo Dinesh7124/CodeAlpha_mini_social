@@ -1,5 +1,7 @@
 /* ============================================
-   MINISOCIAL — APP.JS (COMPLETE FIXED VERSION)
+   MINISOCIAL — APP.JS (FULLY FIXED v3.0)
+   All features: Edit, Delete, Share, Like,
+   Save, Comment, Reaction, Follow, Suggestions
    ============================================ */
 
 /* ============ HELPERS ============ */
@@ -15,22 +17,12 @@ function showToast(msg) {
   t.textContent = msg;
   const container = document.getElementById('toast-container');
   if (container) container.appendChild(t);
+  else document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
 
-function createCommentElement(author, content, isReply = false, commentId = null) {
-  const div = document.createElement('div');
-  div.className = 'comment' + (isReply ? ' reply' : '');
-  if (commentId) div.dataset.commentId = commentId;
-  const strong = document.createElement('strong');
-  strong.textContent = author;
-  div.appendChild(strong);
-  div.appendChild(document.createTextNode(content));
-  return div;
-}
-
 function linkifyHashtagsIn(el) {
-  if (el.dataset.linkified) return;
+  if (!el || el.dataset.linkified) return;
   el.dataset.linkified = '1';
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const textNodes = [];
@@ -59,7 +51,9 @@ function linkifyHashtagsIn(el) {
     if (lastIndex < text.length) {
       frag.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
-    textNode.parentNode.replaceChild(frag, textNode);
+    if (textNode.parentNode) {
+      textNode.parentNode.replaceChild(frag, textNode);
+    }
   });
 }
 
@@ -78,24 +72,24 @@ if (themeBtn) {
   });
 }
 
-/* ============ COMPOSER ============ */
+/* ============ COMPOSER (postTextarea) ============ */
 const postBtn = document.getElementById('post-btn');
-const postContent = document.getElementById('post-content');
+const postTextarea = document.getElementById('post-content');
 const charCount = document.getElementById('char-count');
 const imageInput = document.getElementById('image-input');
 const videoInput = document.getElementById('video-input');
 const imagePreview = document.getElementById('image-preview');
 
 function updatePostBtn() {
-  const hasText = postContent?.value.trim().length > 0;
+  const hasText = postTextarea?.value.trim().length > 0;
   const hasImage = imageInput?.files[0];
   const hasVideo = videoInput?.files[0];
   if (postBtn) postBtn.disabled = !(hasText || hasImage || hasVideo);
 }
 
-if (postContent) {
-  postContent.addEventListener('input', () => {
-    if (charCount) charCount.textContent = postContent.value.length;
+if (postTextarea) {
+  postTextarea.addEventListener('input', () => {
+    if (charCount) charCount.textContent = postTextarea.value.length;
     updatePostBtn();
   });
 }
@@ -106,10 +100,12 @@ if (imageInput) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      imagePreview.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = ev.target.result;
-      imagePreview.appendChild(img);
+      if (imagePreview) {
+        imagePreview.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = ev.target.result;
+        imagePreview.appendChild(img);
+      }
       updatePostBtn();
     };
     reader.readAsDataURL(file);
@@ -133,7 +129,7 @@ if (videoInput) {
 
 if (postBtn) {
   postBtn.addEventListener('click', async () => {
-    const content = postContent.value.trim();
+    const content = postTextarea.value.trim();
     const image = imageInput?.files[0];
     const video = videoInput?.files[0];
     if (!content && !image && !video) return;
@@ -162,48 +158,149 @@ if (postBtn) {
       postBtn.disabled = false;
     }
   });
-
-  postContent.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') postBtn.click();
-  });
 }
 
-/* ============ REACTIONS ============ */
+/* ============ EMOJI MAP ============ */
 const reactionEmojis = {
-  like: '❤️',
-  love: '😍',
+  like: '👍',
+  love: '❤️',
   haha: '😂',
   wow: '😮',
   sad: '😢',
   angry: '😡',
 };
 
-// Show reaction picker on hover / long-press
+/* ============ POST MENU (EDIT/DELETE) ============ */
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.post-menu')) {
+    document.querySelectorAll('.menu-dropdown.show').forEach(m => {
+      m.classList.remove('show');
+    });
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const menuBtn = e.target.closest('.menu-btn');
+  if (!menuBtn) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const menu = menuBtn.nextElementSibling;
+  if (!menu || !menu.classList.contains('menu-dropdown')) return;
+
+  document.querySelectorAll('.menu-dropdown.show').forEach(m => {
+    if (m !== menu) m.classList.remove('show');
+  });
+  menu.classList.toggle('show');
+});
+
+/* ============ EDIT POST ============ */
+document.addEventListener('click', async (e) => {
+  const editLink = e.target.closest('.edit-post');
+  if (!editLink) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const postId = editLink.dataset.postId;
+  const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
+  if (!postEl) return;
+
+  const contentEl = postEl.querySelector('.post-content');
+  const oldContent = contentEl ? contentEl.textContent : '';
+  const newContent = prompt('Edit post:', oldContent);
+
+  if (newContent && newContent.trim() && newContent.trim() !== oldContent) {
+    try {
+      const res = await fetch(`/api/post/${postId}/edit/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': CSRF,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ content: newContent.trim() })
+      });
+      if (res.ok) {
+        if (contentEl) contentEl.textContent = newContent.trim();
+        showToast('Post updated ✏️');
+      } else {
+        showToast('Failed to update');
+      }
+    } catch (err) {
+      showToast('Network error');
+    }
+  }
+  document.querySelectorAll('.menu-dropdown.show').forEach(m => m.classList.remove('show'));
+});
+
+/* ============ DELETE POST ============ */
+document.addEventListener('click', async (e) => {
+  const deleteLink = e.target.closest('.delete-post');
+  if (!deleteLink) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const postId = deleteLink.dataset.postId;
+  if (!confirm('Delete this post?')) return;
+
+  try {
+    const res = await fetch(`/api/post/${postId}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF }
+    });
+    if (res.ok) {
+      const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
+      if (postEl) postEl.remove();
+      showToast('Post deleted 🗑️');
+    } else {
+      showToast('Failed to delete');
+    }
+  } catch (err) {
+    showToast('Network error');
+  }
+  document.querySelectorAll('.menu-dropdown.show').forEach(m => m.classList.remove('show'));
+});
+
+/* ============ REACTION PICKER ============ */
+document.addEventListener('mouseover', (e) => {
+  const wrapper = e.target.closest('.reaction-wrapper');
+  if (!wrapper) return;
+  const picker = wrapper.querySelector('.reaction-picker');
+  if (picker) picker.classList.add('show');
+});
+
+document.addEventListener('mouseout', (e) => {
+  const wrapper = e.target.closest('.reaction-wrapper');
+  if (!wrapper) return;
+  const picker = wrapper.querySelector('.reaction-picker');
+  if (picker) {
+    setTimeout(() => {
+      if (!wrapper.matches(':hover')) picker.classList.remove('show');
+    }, 200);
+  }
+});
+
 document.querySelectorAll('.reaction-wrapper').forEach(wrapper => {
   const picker = wrapper.querySelector('.reaction-picker');
   const btn = wrapper.querySelector('.reaction-btn');
   if (!picker || !btn) return;
   let pressTimer;
 
-  const show = () => picker.classList.add('show');
-  const hide = () => picker.classList.remove('show');
-
   btn.addEventListener('touchstart', () => {
-    pressTimer = setTimeout(show, 300);
+    pressTimer = setTimeout(() => picker.classList.add('show'), 300);
   });
   btn.addEventListener('touchend', () => clearTimeout(pressTimer));
-
-  wrapper.addEventListener('mouseenter', show);
-  wrapper.addEventListener('mouseleave', () => setTimeout(hide, 250));
+  btn.addEventListener('touchmove', () => clearTimeout(pressTimer));
 });
 
-// Pick a specific reaction
 document.addEventListener('click', async (e) => {
   const option = e.target.closest('.reaction-option');
   if (!option) return;
+  e.preventDefault();
+  e.stopPropagation();
 
   const wrapper = option.closest('.reaction-wrapper');
   const btn = wrapper.querySelector('.reaction-btn');
+  const picker = wrapper.querySelector('.reaction-picker');
   const postId = btn.dataset.postId;
   const reaction = option.dataset.reaction;
 
@@ -221,21 +318,21 @@ document.addEventListener('click', async (e) => {
     if (res.ok) {
       const iconEl = btn.querySelector('.reaction-icon');
       const countEl = btn.querySelector('.reaction-count');
-      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
+      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '👍';
       if (countEl) countEl.textContent = Object.values(data.counts || {}).reduce((a, b) => a + b, 0);
-      btn.className = 'action-btn reaction-btn';
-      if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
-      wrapper.querySelector('.reaction-picker').classList.remove('show');
+      btn.classList.toggle('is-active', !!data.reaction);
+      btn.setAttribute('aria-pressed', data.reaction ? 'true' : 'false');
+      if (picker) picker.classList.remove('show');
     }
   } catch (err) {
     console.error('Reaction error:', err);
   }
 });
 
-// Quick like on click
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.reaction-btn');
   if (!btn || e.target.closest('.reaction-option')) return;
+  e.preventDefault();
 
   const postId = btn.dataset.postId;
   try {
@@ -252,10 +349,10 @@ document.addEventListener('click', async (e) => {
     if (res.ok) {
       const iconEl = btn.querySelector('.reaction-icon');
       const countEl = btn.querySelector('.reaction-count');
-      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
+      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '👍';
       if (countEl) countEl.textContent = Object.values(data.counts || {}).reduce((a, b) => a + b, 0);
-      btn.className = 'action-btn reaction-btn';
-      if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
+      btn.classList.toggle('is-active', !!data.reaction);
+      btn.setAttribute('aria-pressed', data.reaction ? 'true' : 'false');
     }
   } catch (err) {
     console.error('Like error:', err);
@@ -282,7 +379,9 @@ document.addEventListener('submit', async (e) => {
     });
     const data = await res.json();
     if (res.ok) {
-      const div = createCommentElement(data.author, data.content, false, data.id);
+      const div = document.createElement('div');
+      div.className = 'comment';
+      div.innerHTML = `<strong>${data.author}</strong>${data.content}`;
       form.parentElement.insertBefore(div, form);
       input.value = '';
       showToast('Comment added 💬');
@@ -314,7 +413,9 @@ document.addEventListener('click', async (e) => {
     const data = await res.json();
     if (res.ok) {
       const parent = btn.closest('.comment');
-      const reply = createCommentElement(data.author, data.content, true, data.id);
+      const reply = document.createElement('div');
+      reply.className = 'comment reply';
+      reply.innerHTML = `<strong>${data.author}</strong>${data.content}`;
       parent.appendChild(reply);
       showToast('Reply added 💬');
     }
@@ -346,60 +447,11 @@ if (followBtn) {
   });
 }
 
-/* ============ POST MENU ============ */
-document.addEventListener('click', (e) => {
-  const menuBtn = e.target.closest('.menu-btn');
-  document.querySelectorAll('.menu-dropdown').forEach(m => {
-    if (!menuBtn || m !== menuBtn.nextElementSibling) m.classList.remove('show');
-  });
-  if (menuBtn) menuBtn.nextElementSibling.classList.toggle('show');
-});
-
-document.addEventListener('click', async (e) => {
-  const editLink = e.target.closest('.edit-post');
-  const deleteLink = e.target.closest('.delete-post');
-
-  if (editLink) {
-    e.preventDefault();
-    const postId = editLink.dataset.postId;
-    const postEl = document.querySelector(`.post[data-post-id="${postId}"]`);
-    const contentEl = postEl.querySelector('.post-content');
-    const newContent = prompt('Edit post:', contentEl ? contentEl.textContent : '');
-    if (newContent && newContent.trim()) {
-      const res = await fetch(`/api/post/${postId}/edit/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': CSRF,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({ content: newContent.trim() })
-      });
-      if (res.ok) {
-        if (contentEl) contentEl.textContent = newContent.trim();
-        showToast('Post updated ✏️');
-      }
-    }
-  }
-
-  if (deleteLink) {
-    e.preventDefault();
-    const postId = deleteLink.dataset.postId;
-    if (!confirm('Delete this post?')) return;
-    const res = await fetch(`/api/post/${postId}/delete/`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF }
-    });
-    if (res.ok) {
-      document.querySelector(`.post[data-post-id="${postId}"]`).remove();
-      showToast('Post deleted 🗑️');
-    }
-  }
-});
-
 /* ============ SAVE POST ============ */
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.save-btn');
   if (!btn) return;
+  e.preventDefault();
   try {
     const res = await fetch(`/api/save/${btn.dataset.postId}/`, {
       method: 'POST',
@@ -408,7 +460,10 @@ document.addEventListener('click', async (e) => {
     const data = await res.json();
     if (res.ok) {
       btn.classList.toggle('saved', data.saved);
-      btn.innerHTML = data.saved ? '🔖 <span>Saved</span>' : '📑 <span>Save</span>';
+      const icon = btn.querySelector('.reaction-icon');
+      const label = btn.querySelector('span:not(.reaction-icon)');
+      if (icon) icon.textContent = data.saved ? '🔖' : '📑';
+      if (label) label.textContent = data.saved ? 'Saved' : 'Save';
       showToast(data.saved ? 'Post saved 🔖' : 'Removed from saved');
     }
   } catch (err) {
@@ -474,60 +529,7 @@ if (sentinel && 'IntersectionObserver' in window) {
   observer.observe(sentinel);
 }
 
-/* ============ SUGGESTIONS (Left Box) ============ */
-async function loadSuggestions() {
-  const box = document.getElementById('suggestions-box');
-  const list = document.getElementById('suggestions-list');
-  if (!box || !list) return;
-
-  try {
-    const res = await fetch('/api/suggestions/');
-    const data = await res.json();
-    if (!data.users || data.users.length === 0) return;
-
-    list.innerHTML = '';
-    data.users.forEach(u => {
-      const card = document.createElement('div');
-      card.className = 'suggestion-card';
-
-      const avatar = document.createElement('div');
-      avatar.className = 'avatar';
-      if (u.avatar) {
-        const img = document.createElement('img');
-        img.src = u.avatar;
-        img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
-        avatar.appendChild(img);
-      } else {
-        avatar.textContent = u.username[0].toUpperCase();
-      }
-
-      const name = document.createElement('strong');
-      name.textContent = u.username;
-
-      const followers = document.createElement('small');
-      followers.textContent = u.followers + ' followers';
-
-      const btn = document.createElement('button');
-      btn.className = 'suggestion-follow';
-      btn.dataset.username = u.username;
-      btn.textContent = 'Follow';
-
-      card.appendChild(avatar);
-      card.appendChild(name);
-      card.appendChild(followers);
-      card.appendChild(btn);
-      list.appendChild(card);
-    });
-
-    box.style.display = 'block';
-  } catch (err) {
-    console.error('Suggestions failed', err);
-  }
-}
-
-loadSuggestions();
-
-/* ============ LOAD RIGHT SIDEBAR SUGGESTIONS ============ */
+/* ============ SUGGESTIONS ============ */
 async function loadRightSidebarSuggestions() {
   const list = document.getElementById('suggestions-list');
   if (!list) return;
@@ -567,7 +569,7 @@ async function loadRightSidebarSuggestions() {
 
 loadRightSidebarSuggestions();
 
-/* ============ SUGGESTION FOLLOW HANDLER ============ */
+/* ============ SUGGESTION FOLLOW ============ */
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.suggestion-follow');
   if (!btn || btn.classList.contains('following')) return;
@@ -582,10 +584,6 @@ document.addEventListener('click', async (e) => {
       btn.textContent = 'Following ✓';
       btn.classList.add('following');
       showToast('Now following!');
-      setTimeout(() => {
-        const card = btn.closest('.suggestion-card');
-        if (card) card.remove();
-      }, 800);
     }
   } catch (err) {
     console.error('Follow error:', err);
@@ -609,25 +607,15 @@ if (notifBell) {
           badge.className = 'badge';
           notifBell.appendChild(badge);
         }
-        const prev = badge.textContent;
         badge.textContent = data.count;
-        if (prev !== String(data.count)) {
-          badge.animate([
-            { transform: 'scale(1)' },
-            { transform: 'scale(1.4)' },
-            { transform: 'scale(1)' },
-          ], { duration: 400, easing: 'ease-out' });
-        }
       } else if (badge) {
         badge.remove();
       }
-    } catch (err) {
-      // silent fail
-    }
+    } catch (err) {}
   }, 15000);
 }
 
-/* ============ SEND FRIEND REQUEST ============ */
+/* ============ FRIEND REQUESTS ============ */
 async function sendFriendRequest(userId) {
   try {
     const res = await fetch(`/friend-request/send/${userId}/`, {
@@ -646,7 +634,6 @@ async function sendFriendRequest(userId) {
   }
 }
 
-/* ============ ACCEPT FRIEND REQUEST ============ */
 async function acceptRequest(reqId) {
   try {
     const res = await fetch(`/friend-request/accept/${reqId}/`, {
@@ -663,89 +650,6 @@ async function acceptRequest(reqId) {
   }
 }
 
-/* ============ SHARE MODAL ============ */
-let currentSharePostId = null;
-
-async function openShareModal(postId) {
-  currentSharePostId = postId;
-  document.getElementById('shareModal').style.display = 'flex';
-
-  const list = document.getElementById('shareFriendsList');
-  list.innerHTML = '<div class="skeleton" style="height:60px;margin-bottom:.5rem;"></div>';
-
-  try {
-    const res = await fetch('/api/friends/');
-    const data = await res.json();
-
-    if (!data.friends || data.friends.length === 0) {
-      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No friends yet. Add friends to share posts!</p>';
-      return;
-    }
-
-    list.innerHTML = '';
-    data.friends.forEach(f => {
-      const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.75rem;border-radius:12px;cursor:pointer;transition:all .2s;';
-      item.onmouseover = () => item.style.background = 'var(--hover)';
-      item.onmouseout = () => item.style.background = 'transparent';
-      item.innerHTML = `
-        ${f.avatar 
-          ? `<img src="${f.avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">`
-          : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">${f.username[0].toUpperCase()}</div>`
-        }
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:.92rem;">${f.full_name}</div>
-          <div style="color:var(--text-muted);font-size:.78rem;">@${f.username}</div>
-        </div>
-        <button style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;padding:.5rem 1rem;border-radius:50px;font-weight:700;font-size:.82rem;cursor:pointer;">
-          Send
-        </button>
-      `;
-      item.onclick = () => sendShare(f.id);
-      list.appendChild(item);
-    });
-  } catch (e) {
-    list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Failed to load friends</p>';
-  }
-}
-
-function closeShareModal() {
-  document.getElementById('shareModal').style.display = 'none';
-  document.getElementById('shareMessage').value = '';
-  currentSharePostId = null;
-}
-
-async function sendShare(recipientId) {
-  const message = document.getElementById('shareMessage').value.trim();
-
-  try {
-    const res = await fetch(`/api/share/${currentSharePostId}/`, {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': CSRF,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({ recipient_id: recipientId, message })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      showToast(`✅ Post shared with ${data.shared_with}!`);
-      closeShareModal();
-    } else {
-      showToast('❌ Failed to share');
-    }
-  } catch (err) {
-    showToast('❌ Network error');
-  }
-}
-
-// Modal close on outside click
-document.getElementById('shareModal')?.addEventListener('click', (e) => {
-  if (e.target.id === 'shareModal') closeShareModal();
-});
-
-/* ============ REJECT FRIEND REQUEST ============ */
 async function rejectRequest(reqId) {
   try {
     const res = await fetch(`/friend-request/reject/${reqId}/`, {
@@ -760,4 +664,101 @@ async function rejectRequest(reqId) {
   } catch (err) {
     showToast('❌ Network error');
   }
+}
+
+/* ============ POST DRAFTS ============ */
+const draftBtn = document.getElementById('draft-btn');
+
+if (draftBtn) {
+  draftBtn.addEventListener('click', async () => {
+    const content = postTextarea.value.trim();
+    const image = imageInput?.files[0];
+    const video = videoInput?.files[0];
+
+    if (!content && !image && !video) {
+      showToast('⚠️ Nothing to save');
+      return;
+    }
+
+    const fd = new FormData();
+    if (content) fd.append('content', content);
+    if (image) fd.append('image', image);
+    if (video) fd.append('video', video);
+
+    try {
+      const res = await fetch('/api/draft/save/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+        body: fd
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('💾 Draft saved!');
+        postTextarea.value = '';
+        imagePreview.innerHTML = '';
+        if (imageInput) imageInput.value = '';
+        if (videoInput) videoInput.value = '';
+        updatePostBtn();
+      } else {
+        showToast('❌ ' + (data.error || 'Failed'));
+      }
+    } catch (err) {
+      showToast('❌ Network error');
+    }
+  });
+}
+
+// Load draft on page load
+(async () => {
+  if (!postTextarea) return;
+  try {
+    const res = await fetch('/api/draft/');
+    const data = await res.json();
+    if (data.draft && data.draft.content) {
+      postTextarea.value = data.draft.content;
+      if (charCount) charCount.textContent = data.draft.content.length;
+      updatePostBtn();
+
+      showToast('📝 Draft loaded from ' + data.draft.updated_at);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'tool-btn';
+      delBtn.innerHTML = '🗑️ <span>Discard Draft</span>';
+      delBtn.style.cssText = 'background:#fef2f2;color:#ef4444;border-color:#fecaca;';
+      delBtn.onclick = async () => {
+        if (!confirm('Discard this draft?')) return;
+        try {
+          const r = await fetch(`/api/draft/${data.draft.id}/delete/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF }
+          });
+          if (r.ok) {
+            postTextarea.value = '';
+            if (charCount) charCount.textContent = '0';
+            delBtn.remove();
+            showToast('🗑️ Draft discarded');
+          }
+        } catch (e) {}
+      };
+
+      const tools = document.querySelector('.composer-tools');
+      if (tools) tools.appendChild(delBtn);
+    }
+  } catch (e) {
+    console.error('Failed to load draft', e);
+  }
+})();
+
+/* ============ TOGGLE POST MENU (legacy) ============ */
+function togglePostMenu(event, postId) {
+  event.stopPropagation();
+  const menu = document.getElementById(`menu-${postId}`);
+  if (!menu) return;
+
+  document.querySelectorAll('.menu-dropdown.show').forEach(m => {
+    if (m.id !== `menu-${postId}`) m.classList.remove('show');
+  });
+
+  menu.classList.toggle('show');
 }

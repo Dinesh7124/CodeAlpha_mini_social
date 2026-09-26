@@ -21,8 +21,22 @@ from .models import (
     Post, Comment, Like, Follow, Notification,
     Message, Story, SavedPost, Reaction, Profile,
     PasswordResetOTP, FriendRequest, Friendship, Conversation,
-    PostShare, StoryReaction, Block, Report, Hashtag, ProfileView  # ✅ NAYE
+    PostShare, StoryReaction, Block, Report, Hashtag, ProfileView,
+    Collection, CollectionItem, PostDraft  # ✅ NAYE
 )
+
+@login_required
+def story_viewer(request, story_id):
+    """Full-screen story viewer."""
+    cutoff = timezone.now() - timedelta(hours=24)
+    stories = Story.objects.filter(
+        created_at__gte=cutoff
+    ).select_related('author').order_by('-created_at')
+
+    return render(request, 'social/story_viewer.html', {
+        'stories': stories,
+        'story_id': story_id,
+    })
 
 # ============ API: FRIENDS LIST ============
 @login_required
@@ -74,6 +88,63 @@ def _unread(user):
     if not user.is_authenticated:
         return 0
     return user.notifications.filter(is_read=False).count()
+
+# ============ POST DRAFTS ============
+@login_required
+@require_POST
+def save_draft(request):
+    """Save current post as draft."""
+    content = request.POST.get('content', '').strip()
+    image = request.FILES.get('image')
+    video = request.FILES.get('video')
+
+    if not content and not image and not video:
+        return JsonResponse({'error': 'Nothing to save'}, status=400)
+
+    # Only 1 draft per user - delete old, create new
+    PostDraft.objects.filter(author=request.user).delete()
+
+    draft = PostDraft.objects.create(
+        author=request.user,
+        content=content,
+        image=image,
+        video=video
+    )
+
+    return JsonResponse({
+        'status': 'ok',
+        'draft_id': draft.id,
+        'msg': 'Draft saved!'
+    })
+
+
+@login_required
+def get_draft(request):
+    """Get current user's draft (if any)."""
+    draft = PostDraft.objects.filter(author=request.user).first()
+
+    if not draft:
+        return JsonResponse({'draft': None})
+
+    return JsonResponse({
+        'draft': {
+            'id': draft.id,
+            'content': draft.content,
+            'image': draft.image.url if draft.image else None,
+            'video': draft.video.url if draft.video else None,
+            'updated_at': draft.updated_at.strftime('%b %d, %H:%M'),
+        }
+    })
+
+
+@login_required
+@require_POST
+def delete_draft(request, draft_id):
+    """Delete a draft."""
+    draft = get_object_or_404(PostDraft, id=draft_id, author=request.user)
+    draft.delete()
+    return JsonResponse({'status': 'ok', 'msg': 'Draft deleted'})
+
 
 
 # ============ RESEND CONFIG ============
@@ -457,6 +528,8 @@ def create_post(request):
             author=request.user, content=content,
             image=image, video=video, privacy=privacy
         )
+        # Delete draft after successful post
+        PostDraft.objects.filter(author=request.user).delete()
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Empty post'}, status=400)
 
@@ -1257,3 +1330,118 @@ def run_migrations(request):
         return HttpResponse("✅ Migrations + superuser created!")
     except Exception as e:
         return HttpResponse(f"❌ Error: {str(e)}")
+
+# ============ COLLECTIONS ============
+@login_required
+def collections_list(request):
+    """Show all collections of current user."""
+    collections = request.user.collections.all()
+
+    return render(request, 'social/collections.html', {
+        'collections': collections,
+        'unread_count': _unread(request.user),
+    })
+
+
+@login_required
+def collection_detail(request, collection_id):
+    """Show posts inside a collection."""
+    collection = get_object_or_404(Collection, id=collection_id)
+
+    # Privacy check
+    if collection.user != request.user and not collection.is_public:
+        return redirect('collections_list')
+
+    items = collection.items.select_related('post__author').all()
+
+    return render(request, 'social/collection_detail.html', {
+        'collection': collection,
+        'items': items,
+        'unread_count': _unread(request.user),
+    })
+
+
+@login_required
+@require_POST
+def create_collection(request):
+    """Create a new collection."""
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+    is_public = request.POST.get('is_public', 'false') == 'true'
+
+    if not name:
+        return JsonResponse({'error': 'Name required'}, status=400)
+
+    if Collection.objects.filter(user=request.user, name=name).exists():
+        return JsonResponse({'error': 'Collection already exists'}, status=400)
+
+    collection = Collection.objects.create(
+        user=request.user,
+        name=name,
+        description=description,
+        is_public=is_public
+    )
+
+    return JsonResponse({
+        'status': 'ok',
+        'id': collection.id,
+        'name': collection.name,
+        'description': collection.description,
+        'is_public': collection.is_public,
+    })
+
+
+@login_required
+@require_POST
+def delete_collection(request, collection_id):
+    """Delete a collection."""
+    collection = get_object_or_404(Collection, id=collection_id, user=request.user)
+    collection.delete()
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+@require_POST
+def add_to_collection(request, post_id):
+    """Add post to a collection."""
+    post = get_object_or_404(Post, id=post_id)
+    collection_id = request.POST.get('collection_id')
+
+    if not collection_id:
+        return JsonResponse({'error': 'Collection required'}, status=400)
+
+    collection = get_object_or_404(Collection, id=collection_id, user=request.user)
+
+    item, created = CollectionItem.objects.get_or_create(
+        collection=collection, post=post
+    )
+
+    if created:
+        return JsonResponse({'status': 'ok', 'msg': f'Added to {collection.name}'})
+    else:
+        return JsonResponse({'status': 'exists', 'msg': 'Already in collection'})
+
+
+@login_required
+@require_POST
+def remove_from_collection(request, item_id):
+    """Remove post from collection."""
+    item = get_object_or_404(CollectionItem, id=item_id, collection__user=request.user)
+    item.delete()
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+def user_collections(request):
+    """API: Get user's collections for dropdown."""
+    collections = request.user.collections.all()
+
+    return JsonResponse({
+        'collections': [
+            {
+                'id': c.id,
+                'name': c.name,
+                'post_count': c.post_count,
+            } for c in collections
+        ]
+    })

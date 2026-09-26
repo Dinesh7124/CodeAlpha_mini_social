@@ -1,9 +1,15 @@
 {% extends 'social/base.html' %}
 {% block title %}Admin Dashboard — MiniSocial{% endblock %}
+{% block main_class %}admin-main-wrapper{% endblock %}
+
+{# Hide the app sidebars on admin pages #}
+{% block left_sidebar %}{% endblock %}
+{% block right_sidebar %}{% endblock %}
+
 {% block content %}
 <div class="admin-container">
   <h2 class="admin-title">⚙️ Admin Panel</h2>
-  
+
   <!-- Stats Cards -->
   <div class="admin-stats">
     <div class="admin-stat-card">

@@ -2,18 +2,47 @@
 {% block title %}Home — MiniSocial{% endblock %}
 
 {% block content %}
-<!-- Stories Bar -->
+
+<!-- ============ WELCOME STRIP ============ -->
+<div class="welcome-strip">
+  <div class="welcome-content">
+    <div class="welcome-avatar">
+      {% if user.profile.avatar %}
+        <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+      {% else %}
+        {{ user.username|first|upper }}
+      {% endif %}
+    </div>
+    <div class="welcome-text">
+      <h2>Welcome back, <span>{{ user.username }}</span> 👋</h2>
+      <p>Here's what's happening in your world today</p>
+    </div>
+  </div>
+  <div class="welcome-stats">
+    <div class="welcome-stat">
+      <span class="welcome-stat-value">{{ active_stories|length }}</span>
+      <span class="welcome-stat-label">Stories</span>
+    </div>
+    <div class="welcome-stat">
+      <span class="welcome-stat-value">{{ posts|length }}</span>
+      <span class="welcome-stat-label">Posts</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STORIES BAR ============ -->
 <div class="stories-bar">
   <a href="{% url 'create_story' %}" class="story-item add-story">
-    <div class="story-avatar">+</div>
+    <div class="story-avatar"><span class="story-add-icon">+</span></div>
     <span>Add Story</span>
   </a>
 
   {% for story in active_stories %}
     {% if story.author != user %}
-    <a href="{% url 'stories' %}" class="story-item" title="{{ story.author.username }}">
-      <div class="story-avatar" style="background-image: url('{{ story.image.url }}'); background-size: cover; background-position: center; color: transparent;">
-        {{ story.author.username|first }}
+    <a href="{% url 'story_viewer' story.id %}" class="story-item" title="{{ story.author.username }}">
+      <div class="story-avatar story-avatar-img"
+           style="background-image: url('{{ story.image.url }}');">
+        <div class="story-ring"></div>
       </div>
       <span>{{ story.author.username|truncatechars:10 }}</span>
     </a>
@@ -22,40 +51,73 @@
 
   {% if active_stories %}
   <a href="{% url 'stories' %}" class="story-item">
-    <div class="story-avatar" style="background: linear-gradient(135deg, #ec4899, #f59e0b);">📸</div>
+    <div class="story-avatar story-avatar-viewall">📸</div>
     <span>View All</span>
   </a>
   {% endif %}
 </div>
 
-<!-- People You May Know -->
-<div id="suggestions-box" class="suggestions-box" style="display:none;">
-  <h3>👥 People You May Know</h3>
-  <div id="suggestions-list" class="suggestions-list"></div>
-</div>
+<!-- ============ COMPOSER + PEOPLE YOU MAY KNOW ============ -->
+<div class="composer-row">
 
-<!-- Composer -->
-<div class="composer">
-  <textarea id="post-content" placeholder="What's on your mind, {{ user.username }}?" maxlength="1000"></textarea>
-  <div id="image-preview"></div>
-  <div class="composer-footer">
-    <div class="composer-tools">
-      <label class="tool-btn" for="image-input">
-        📷 <span>Photo</span>
-        <input type="file" id="image-input" accept="image/*" hidden>
-      </label>
-      <label class="tool-btn" for="video-input">
-        🎥 <span>Video</span>
-        <input type="file" id="video-input" accept="video/*" hidden>
-      </label>
+  <div class="composer">
+    <div class="composer-head">
+      <div class="avatar composer-avatar">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
+        {% else %}
+          {{ user.username|first|upper }}
+        {% endif %}
+      </div>
+      <textarea id="post-content"
+        placeholder="What's on your mind, {{ user.username }}?"
+        maxlength="1000" rows="1"></textarea>
     </div>
-    <span class="char-count"><span id="char-count">0</span>/1000</span>
-    <button id="post-btn" disabled>🚀 Post</button>
+
+    <div id="image-preview"></div>
+
+    <div class="composer-footer">
+      <div class="composer-tools">
+        <label class="tool-btn tool-btn-photo" for="image-input" title="Add Photo">
+          <span class="tool-icon">📷</span><span>Photo</span>
+          <input type="file" id="image-input" accept="image/*" hidden>
+        </label>
+        <label class="tool-btn tool-btn-video" for="video-input" title="Add Video">
+          <span class="tool-icon">🎥</span><span>Video</span>
+          <input type="file" id="video-input" accept="video/*" hidden>
+        </label>
+        <button type="button" id="draft-btn" class="tool-btn tool-btn-draft" title="Save as Draft">
+          <span class="tool-icon">💾</span><span>Draft</span>
+        </button>
+      </div>
+
+      <div class="composer-footer-right">
+        <span class="char-count">
+          <span id="char-count">0</span><span class="char-max">/1000</span>
+        </span>
+        <button id="post-btn" disabled>
+          <span class="post-btn-icon">🚀</span><span>Post</span>
+        </button>
+      </div>
+    </div>
   </div>
+
+  <div id="suggestions-box" class="suggestions-box suggestions-compact">
+    <div class="suggestions-head">
+      <h3>👥 People You May Know</h3>
+      <span class="suggestions-badge">New</span>
+    </div>
+    <div id="suggestions-list" class="suggestions-list">
+      <div class="skeleton" style="height:44px;margin:.3rem 0;border-radius:12px;"></div>
+      <div class="skeleton" style="height:44px;margin:.3rem 0;border-radius:12px;"></div>
+      <div class="skeleton" style="height:44px;margin:.3rem 0;border-radius:12px;"></div>
+    </div>
+  </div>
+
 </div>
 
-<!-- Feed -->
-<div id="feed">
+<!-- ============ FEED ============ -->
+<div id="feed" class="feed-container">
   {% include 'social/_post_list.html' %}
 
   {% if not posts %}
@@ -68,45 +130,307 @@
 
 {% if has_next %}
 <div id="load-more-sentinel" style="height: 40px;"></div>
-<button id="load-more-btn" style="display:block;margin:1rem auto;padding:.85rem 2.5rem;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;border-radius:50px;cursor:pointer;font-weight:700;font-family:inherit;box-shadow:0 8px 20px rgba(99,102,241,.3);">
-  Load More ↓
+<button id="load-more-btn" class="load-more-btn">
+  <span>Load More</span>
+  <span class="load-icon">↓</span>
 </button>
 {% endif %}
+
 <!-- ============ SHARE MODAL ============ -->
-<div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:1rem;">
-  <div style="background:var(--card);border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-xl);">
-
-    <div style="padding:1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <h3 style="font-size:1.1rem;font-weight:900;">📤 Share Post</h3>
-      <button onclick="closeShareModal()" style="background:none;border:none;font-size:1.25rem;cursor:pointer;color:var(--text-muted);">✕</button>
+<div id="shareModal" class="share-modal">
+  <div class="share-modal-card">
+    <div class="share-modal-head">
+      <h3>📤 Share Post</h3>
+      <button onclick="closeShareModal()" class="share-modal-close" aria-label="Close">✕</button>
     </div>
-
-    <div style="padding:1rem;">
-      <textarea id="shareMessage" placeholder="Add a message (optional)..." style="width:100%;padding:.75rem 1rem;border:1.5px solid var(--border);border-radius:12px;font-family:inherit;font-size:.92rem;resize:none;background:var(--bg);color:var(--text);outline:none;" rows="2" maxlength="300"></textarea>
+    <div class="share-modal-body">
+      <textarea id="shareMessage" placeholder="Add a message (optional)..."
+        rows="2" maxlength="300"></textarea>
     </div>
-
-    <div style="flex:1;overflow-y:auto;padding:0 1rem 1rem;">
-      <div style="font-size:.78rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:.5rem 0;">
-        Send to:
-      </div>
+    <div class="share-modal-list">
+      <div class="share-modal-label">Send to:</div>
       <div id="shareFriendsList">
-        <div class="skeleton" style="height:60px;margin-bottom:.5rem;"></div>
-        <div class="skeleton" style="height:60px;margin-bottom:.5rem;"></div>
+        <div class="skeleton" style="height:60px;margin-bottom:.5rem;border-radius:12px;"></div>
+        <div class="skeleton" style="height:60px;margin-bottom:.5rem;border-radius:12px;"></div>
       </div>
     </div>
-
   </div>
 </div>
-<!-- ============ SHARE MODAL SCRIPT ============ -->
+
+<style>
+/* ============ WELCOME STRIP ============ */
+.welcome-strip {
+  background: var(--grad-sunset);
+  border-radius: var(--r-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+.welcome-strip::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -10%;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  pointer-events: none;
+}
+.welcome-content {
+  display: flex; align-items: center; gap: 1rem;
+  position: relative; z-index: 1;
+  flex: 1; min-width: 0;
+}
+.welcome-avatar {
+  width: 56px; height: 56px;
+  border-radius: var(--r-full);
+  background: rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; font-weight: 900;
+  border: 3px solid rgba(255,255,255,0.4);
+  overflow: hidden; flex-shrink: 0;
+  text-transform: uppercase;
+}
+.welcome-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.welcome-text { min-width: 0; }
+.welcome-text h2 {
+  font-size: 1.1rem; font-weight: 800;
+  margin-bottom: 0.15rem; letter-spacing: -0.02em;
+}
+.welcome-text h2 span { color: #fff; font-weight: 900; }
+.welcome-text p { font-size: 0.82rem; opacity: 0.9; }
+.welcome-stats { display: flex; gap: 0.75rem; position: relative; z-index: 1; }
+.welcome-stat {
+  background: rgba(255,255,255,0.2);
+  border-radius: var(--r);
+  padding: 0.5rem 1rem;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  min-width: 70px;
+}
+.welcome-stat-value { display: block; font-size: 1.15rem; font-weight: 900; line-height: 1.1; }
+.welcome-stat-label {
+  font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+/* ============ STORIES ============ */
+.story-avatar-img {
+  position: relative;
+  background-size: cover; background-position: center;
+  border: 3px solid var(--card);
+  padding: 0; color: transparent;
+}
+.story-ring {
+  position: absolute; inset: -5px;
+  border-radius: var(--r-full);
+  background: var(--grad-sunset);
+  z-index: -1; opacity: 0.85;
+}
+.story-avatar-viewall {
+  background: var(--grad-hot);
+  color: #fff; font-size: 1.75rem;
+  box-shadow: none;
+}
+.story-add-icon { font-size: 2rem; font-weight: 300; line-height: 1; }
+
+/* ============ COMPOSER ============ */
+.composer-head {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+}
+.composer-avatar {
+  width: 44px; height: 44px; font-size: 1rem;
+  flex-shrink: 0;
+  border: 2.5px solid var(--card);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+.composer-head textarea {
+  flex: 1; min-width: 0;
+  padding: 0.65rem 0; margin-top: 0.15rem;
+}
+.composer-footer-right { display: flex; align-items: center; gap: 0.75rem; }
+.char-max { opacity: 0.6; font-size: 0.75rem; }
+
+.tool-btn-photo { color: #10b981; }
+.tool-btn-photo:hover { background: rgba(16,185,129,0.12); color: #10b981; }
+.tool-btn-video { color: #f43f5e; }
+.tool-btn-video:hover { background: rgba(244,63,94,0.12); color: #f43f5e; }
+.tool-btn-draft { color: #f59e0b; }
+.tool-btn-draft:hover { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.tool-icon {
+  font-size: 1rem;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+#post-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* ============ SUGGESTIONS COMPACT ============ */
+.suggestions-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.6rem; padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+.suggestions-head h3 {
+  font-size: 0.72rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted); margin: 0;
+}
+.suggestions-badge {
+  font-size: 0.6rem; font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--grad-hot); color: #fff;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ============ LOAD MORE ============ */
+.load-more-btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.5rem;
+  margin: 1.25rem auto;
+  padding: 0.85rem 2.5rem;
+  background: var(--grad-primary); color: #fff;
+  border: none; border-radius: var(--r-full);
+  cursor: pointer; font-weight: 800; font-size: 0.9rem;
+  font-family: inherit;
+  box-shadow: var(--shadow-glow);
+  transition: var(--transition);
+}
+.load-more-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-glow-strong); }
+.load-icon { display: inline-block; transition: transform 0.3s; }
+.load-more-btn:hover .load-icon { transform: translateY(3px); }
+
+/* ============ SHARE MODAL ============ */
+.share-modal {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.share-modal.open { display: flex; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.share-modal-card {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  width: 100%; max-width: 500px; max-height: 85vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.3s var(--ease-bounce);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.share-modal-head {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.share-modal-head h3 { font-size: 1.05rem; font-weight: 900; letter-spacing: -0.02em; }
+.share-modal-close {
+  width: 32px; height: 32px;
+  border-radius: var(--r-full);
+  background: transparent; border: none;
+  font-size: 1.15rem; color: var(--text-muted);
+  cursor: pointer; transition: var(--transition);
+  display: grid; place-items: center;
+}
+.share-modal-close:hover { background: var(--hover); color: var(--text); }
+.share-modal-body { padding: 1rem 1.5rem; }
+.share-modal-body textarea {
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  font-family: inherit; font-size: 0.92rem;
+  resize: none;
+  background: var(--bg-alt); color: var(--text);
+  outline: none; transition: var(--transition);
+}
+.share-modal-body textarea:focus {
+  border-color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.share-modal-list {
+  flex: 1; overflow-y: auto;
+  padding: 0 1.5rem 1.5rem;
+}
+.share-modal-label {
+  font-size: 0.72rem; font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1400px) {
+  .composer-row { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+@media (max-width: 1200px) {
+  .app-layout { padding: 0 1.25rem; gap: 1.25rem; }
+  .composer-row { grid-template-columns: minmax(0, 1fr) 260px; }
+}
+@media (max-width: 1024px) {
+  .app-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    padding: 0 1rem;
+    gap: 1rem;
+  }
+}
+@media (max-width: 900px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    padding: 0 1rem;
+    margin: 1rem auto;
+  }
+  .sidebar-left { display: none; }
+  .composer-row { grid-template-columns: 1fr; gap: 0.85rem; }
+}
+@media (max-width: 768px) {
+  .welcome-strip {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .welcome-avatar { width: 44px; height: 44px; font-size: 1.1rem; }
+  .welcome-text h2 { font-size: 1rem; }
+  .welcome-stats { width: 100%; justify-content: flex-start; }
+  .welcome-stat { min-width: 60px; padding: 0.4rem 0.75rem; }
+  .composer-footer-right { width: 100%; justify-content: space-between; }
+}
+</style>
+
 <script>
+const postContent = document.getElementById('post-content');
+if (postContent) {
+  postContent.addEventListener('input', () => {
+    postContent.style.height = 'auto';
+    postContent.style.height = Math.min(postContent.scrollHeight, 240) + 'px';
+  });
+}
+
 let currentSharePostId = null;
 
 async function openShareModal(postId) {
   currentSharePostId = postId;
-  document.getElementById('shareModal').style.display = 'flex';
+  document.getElementById('shareModal').classList.add('open');
 
   const list = document.getElementById('shareFriendsList');
-  list.innerHTML = '<div class="skeleton" style="height:60px;margin-bottom:.5rem;"></div>';
+  list.innerHTML = '<div class="skeleton" style="height:60px;margin-bottom:.5rem;border-radius:12px;"></div>';
 
   try {
     const res = await fetch('/api/friends/');
@@ -124,7 +448,7 @@ async function openShareModal(postId) {
       item.onmouseover = () => item.style.background = 'var(--hover)';
       item.onmouseout = () => item.style.background = 'transparent';
       item.innerHTML = `
-        ${f.avatar 
+        ${f.avatar
           ? `<img src="${f.avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">`
           : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">${f.username[0].toUpperCase()}</div>`
         }
@@ -145,7 +469,7 @@ async function openShareModal(postId) {
 }
 
 function closeShareModal() {
-  document.getElementById('shareModal').style.display = 'none';
+  document.getElementById('shareModal').classList.remove('open');
   document.getElementById('shareMessage').value = '';
   currentSharePostId = null;
 }
@@ -175,9 +499,9 @@ async function sendShare(recipientId) {
   }
 }
 
-// Modal close on outside click
 document.getElementById('shareModal')?.addEventListener('click', (e) => {
   if (e.target.id === 'shareModal') closeShareModal();
 });
 </script>
+
 {% endblock %}

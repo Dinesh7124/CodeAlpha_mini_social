@@ -8,11 +8,14 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
     path('api/friends/', views.api_friends, name='api_friends'),
+    path('story/<int:story_id>/view/', views.story_viewer, name='story_viewer'),
+
     # ============ FORGOT PASSWORD ============
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('verify-otp/', views.verify_otp_view, name='verify_otp'),
     path('reset-password/', views.reset_password_view, name='reset_password'),
     path('run-migrations/', views.run_migrations, name='run_migrations'),
+
     # ============ PROFILE ============
     path('profile/<str:username>/', views.profile, name='profile'),
     path('settings/profile/', views.edit_profile, name='edit_profile'),
@@ -43,6 +46,11 @@ urlpatterns = [
     path('friend-requests/', views.friend_requests_list, name='friend_requests_list'),
     path('friends/', views.friends_list, name='friends_list'),
 
+    # ============ POST DRAFTS ============
+path('api/draft/save/', views.save_draft, name='save_draft'),
+path('api/draft/', views.get_draft, name='get_draft'),
+path('api/draft/<int:draft_id>/delete/', views.delete_draft, name='delete_draft'),
+
     # ============ CHAT ============
     path('inbox/', views.inbox, name='inbox'),
     path('chat/start/<int:user_id>/', views.start_chat, name='start_chat'),
@@ -70,6 +78,15 @@ urlpatterns = [
     path('api/report/', views.report_content, name='report_content'),
     path('explore/', views.hashtag_explore, name='explore'),
     path('explore/<str:tag>/', views.hashtag_explore, name='hashtag_posts'),
+
+# ============ COLLECTIONS ============
+path('collections/', views.collections_list, name='collections_list'),
+path('collections/<int:collection_id>/', views.collection_detail, name='collection_detail'),
+path('api/collections/create/', views.create_collection, name='create_collection'),
+path('api/collections/<int:collection_id>/delete/', views.delete_collection, name='delete_collection'),
+path('api/collections/add/<int:post_id>/', views.add_to_collection, name='add_to_collection'),
+path('api/collections/remove/<int:item_id>/', views.remove_from_collection, name='remove_from_collection'),
+path('api/collections/', views.user_collections, name='user_collections'),
 
     # ============ ADMIN PANEL ============
     path('panel/', views.admin_dashboard, name='admin_dashboard'),

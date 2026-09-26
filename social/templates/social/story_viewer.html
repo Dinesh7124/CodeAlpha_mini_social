@@ -1,0 +1,140 @@
+{% extends 'social/base.html' %}
+{% block title %}Stories — MiniSocial{% endblock %}
+
+{% block content %}
+<div id="storyViewer" style="position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <!-- Progress bars -->
+  <div style="position:absolute;top:1rem;left:1rem;right:1rem;display:flex;gap:4px;z-index:10;">
+    <div class="progress-segment" style="flex:1;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;">
+      <div class="progress-fill" style="height:100%;background:#fff;width:0%;transition:width 5s linear;"></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div style="position:absolute;top:2rem;left:1rem;right:1rem;display:flex;align-items:center;gap:.75rem;z-index:10;color:#fff;">
+    <div id="storyAuthorAvatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#ec4899);display:flex;align-items:center;justify-content:center;font-weight:800;"></div>
+    <div style="flex:1;">
+      <div id="storyAuthorName" style="font-weight:700;font-size:.95rem;"></div>
+      <div id="storyTime" style="font-size:.78rem;opacity:.8;"></div>
+    </div>
+    <button onclick="closeStoryViewer()" style="background:rgba(255,255,255,0.15);border:none;width:36px;height:36px;border-radius:50%;color:#fff;font-size:1.25rem;cursor:pointer;">✕</button>
+  </div>
+
+  <!-- Story Image -->
+  <img id="storyImage" src="" style="max-width:100%;max-height:100%;object-fit:contain;" alt="Story">
+
+  <!-- Navigation zones -->
+  <div onclick="prevStory()" style="position:absolute;left:0;top:80px;bottom:80px;width:30%;cursor:pointer;z-index:5;"></div>
+  <div onclick="nextStory()" style="position:absolute;right:0;top:80px;bottom:80px;width:70%;cursor:pointer;z-index:5;"></div>
+
+  <!-- Reply Box -->
+  <div style="position:absolute;bottom:1rem;left:1rem;right:1rem;display:flex;gap:.5rem;z-index:10;">
+    <input id="storyReply" type="text" placeholder="Reply to story..." style="flex:1;padding:.85rem 1.25rem;border-radius:50px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-family:inherit;font-size:.92rem;outline:none;backdrop-filter:blur(10px);">
+    <button onclick="sendStoryReply()" style="background:linear-gradient(135deg,#6366f1,#ec4899);color:#fff;border:none;padding:0 1.5rem;border-radius:50px;font-weight:700;cursor:pointer;">Send</button>
+  </div>
+</div>
+
+<script>
+const stories = [
+  {% for story in stories %}
+  {
+    id: {{ story.id }},
+    image: "{{ story.image.url }}",
+    author: "{{ story.author.username }}",
+    authorAvatar: "{% if story.author.profile.avatar %}{{ story.author.profile.avatar.url }}{% endif %}",
+    caption: "{{ story.caption|escapejs }}",
+    time: "{{ story.created_at|timesince }} ago",
+    reactions: {{ story.reactions.count }},
+  },
+  {% endfor %}
+];
+
+let currentIndex = 0;
+let storyTimer = null;
+
+function showStory(index) {
+  if (index < 0 || index >= stories.length) {
+    closeStoryViewer();
+    return;
+  }
+
+  currentIndex = index;
+  const s = stories[index];
+
+  document.getElementById('storyImage').src = s.image;
+  document.getElementById('storyAuthorName').textContent = s.author;
+  document.getElementById('storyTime').textContent = s.time;
+
+  const av = document.getElementById('storyAuthorAvatar');
+  if (s.authorAvatar) {
+    av.innerHTML = `<img src="${s.authorAvatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+  } else {
+    av.textContent = s.author[0].toUpperCase();
+  }
+
+  // Reset progress bar
+  const fill = document.querySelector('.progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+
+  // Start new timer
+  clearTimeout(storyTimer);
+  setTimeout(() => {
+    fill.style.transition = 'width 5s linear';
+    fill.style.width = '100%';
+  }, 50);
+
+  storyTimer = setTimeout(() => nextStory(), 5000);
+}
+
+function nextStory() {
+  clearTimeout(storyTimer);
+  showStory(currentIndex + 1);
+}
+
+function prevStory() {
+  clearTimeout(storyTimer);
+  showStory(currentIndex - 1);
+}
+
+function closeStoryViewer() {
+  clearTimeout(storyTimer);
+  window.history.back();
+}
+
+async function sendStoryReply() {
+  const input = document.getElementById('storyReply');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const s = stories[currentIndex];
+
+  try {
+    const res = await fetch(`/api/story/${s.id}/react/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ reaction: 'love' })
+    });
+    if (res.ok) {
+      showToast('✅ Reply sent!');
+      input.value = '';
+    }
+  } catch (err) {
+    showToast('❌ Failed to send');
+  }
+}
+
+// Start viewer
+showStory(0);
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') nextStory();
+  if (e.key === 'ArrowLeft') prevStory();
+  if (e.key === 'Escape') closeStoryViewer();
+});
+</script>
+{% endblock %}

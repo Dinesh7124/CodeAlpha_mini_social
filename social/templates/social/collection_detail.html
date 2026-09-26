@@ -1,0 +1,79 @@
+{% extends 'social/base.html' %}
+{% block title %}{{ collection.name }} — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem;">
+    <div>
+      <h2 style="font-size:1.5rem;font-weight:900;display:flex;align-items:center;gap:.5rem;">
+        📁 {{ collection.name }}
+      </h2>
+      {% if collection.description %}
+      <p style="color:var(--text-muted);font-size:.9rem;margin-top:.25rem;">{{ collection.description }}</p>
+      {% endif %}
+      <div style="color:var(--text-muted);font-size:.85rem;margin-top:.5rem;">
+        {{ items|length }} post{{ items|length|pluralize }}
+        {% if collection.is_public %} · 🌍 Public{% else %} · 🔒 Private{% endif %}
+      </div>
+    </div>
+    <a href="{% url 'collections_list' %}" class="btn btn-secondary" style="text-decoration:none;">← Back</a>
+  </div>
+</div>
+
+{% if items %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+  {% for item in items %}
+  <div class="post" style="margin:0;">
+    <div class="post-header" style="padding:.75rem;">
+      <span class="avatar" style="width:36px;height:36px;font-size:.85rem;">
+        {% if item.post.author.profile.avatar %}
+          <img src="{{ item.post.author.profile.avatar.url }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+        {% else %}
+          {{ item.post.author.username|first }}
+        {% endif %}
+      </span>
+      <div class="post-meta">
+        <span class="author" style="font-size:.88rem;">{{ item.post.author.username }}</span>
+        <span class="time" style="font-size:.75rem;">{{ item.post.created_at|date:"M d" }}</span>
+      </div>
+    </div>
+    {% if item.post.content %}
+    <p style="padding:0 .75rem .5rem;font-size:.9rem;line-height:1.5;">{{ item.post.content|truncatechars:100 }}</p>
+    {% endif %}
+    {% if item.post.image %}
+    <img src="{{ item.post.image.url }}" style="width:100%;height:180px;object-fit:cover;">
+    {% endif %}
+    <div style="padding:.75rem;display:flex;gap:.4rem;">
+      <button onclick="removeFromCollection({{ item.id }})" class="btn btn-secondary" style="flex:1;padding:.4rem;font-size:.8rem;">
+        ❌ Remove
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty" style="text-align:center;padding:3rem 1.5rem;">
+  <div style="font-size:4rem;margin-bottom:1rem;">📭</div>
+  <h3 style="font-size:1.25rem;font-weight:900;margin-bottom:.5rem;">No posts in this collection</h3>
+  <p style="color:var(--text-muted);">Add posts to this collection from the feed.</p>
+</div>
+{% endif %}
+
+<script>
+async function removeFromCollection(itemId) {
+  if (!confirm('Remove from collection?')) return;
+  try {
+    const res = await fetch(`/api/collections/remove/${itemId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF }
+    });
+    if (res.ok) {
+      showToast('✅ Removed');
+      setTimeout(() => location.reload(), 600);
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+</script>
+{% endblock %}

@@ -31,7 +31,7 @@ class Command(BaseCommand):
                 user.profile.save()
                 self.stdout.write(self.style.SUCCESS(f'✅ User: {username}'))
 
-            users.append(user)
+                users.append(user)
 
         # Create posts
         posts_data = [
