@@ -602,9 +602,9 @@ def toggle_follow(request, username):
 def send_friend_request(request, user_id):
     to_user = get_object_or_404(User, id=user_id)
     if to_user == request.user:
-        return JsonResponse({'status': 'error', 'msg': "Khud ko request nahi bhej sakte"})
+        return JsonResponse({'status': 'error', 'msg': "You cannot send a request to yourself"})
     if Friendship.are_friends(request.user, to_user):
-        return JsonResponse({'status': 'error', 'msg': "Already friends"})
+        return JsonResponse({'status': 'error', 'msg': "You are already friends"})
 
     reverse = FriendRequest.objects.filter(
         from_user=to_user, to_user=request.user, status='pending'
@@ -616,19 +616,19 @@ def send_friend_request(request, user_id):
         Notification.objects.create(
             recipient=to_user, sender=request.user, notif_type='friend_accept'
         )
-        return JsonResponse({'status': 'accepted', 'msg': "Ab aap dono friends ho!"})
+        return JsonResponse({'status': 'accepted', 'msg': "You are now friends!"})
 
     obj, created = FriendRequest.objects.get_or_create(
         from_user=request.user, to_user=to_user,
         defaults={'status': 'pending'}
     )
     if not created:
-        return JsonResponse({'status': 'exists', 'msg': "Request already bheji hai"})
+        return JsonResponse({'status': 'exists', 'msg': "Friend request already sent"})
 
     Notification.objects.create(
         recipient=to_user, sender=request.user, notif_type='friend_request'
     )
-    return JsonResponse({'status': 'sent', 'msg': "Friend request bhej di!"})
+    return JsonResponse({'status': 'sent', 'msg': "Send the Friend Request"})
 
 
 @login_required

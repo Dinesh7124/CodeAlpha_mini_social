@@ -111,7 +111,7 @@ async function sendFriendRequest(userId) {
   });
   const data = await res.json();
   if (data.status === 'sent' || data.status === 'accepted') {
-    alert(data.msg || 'Friend request sent!');
+    alert(data.msg || 'Send the Friend Request');
     location.reload();
   } else {
     alert(data.msg || 'Something went wrong');
