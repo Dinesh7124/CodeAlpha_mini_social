@@ -32,19 +32,19 @@
 
   <div class="post-actions">
     <div class="reaction-wrapper">
-      <button class="action-btn reaction-btn" data-post-id="{{ post.id }}">
-        <span class="reaction-icon">❤️</span>
-        <span class="reaction-count">{{ post.likes_count }}</span>
-      </button>
-      <div class="reaction-picker" id="picker-{{ post.id }}">
-        <button class="reaction-option" data-reaction="like" title="Like">❤️</button>
-        <button class="reaction-option" data-reaction="love" title="Love">😍</button>
-        <button class="reaction-option" data-reaction="haha" title="Haha">😂</button>
-        <button class="reaction-option" data-reaction="wow" title="Wow">😮</button>
-        <button class="reaction-option" data-reaction="sad" title="Sad">😢</button>
-        <button class="reaction-option" data-reaction="angry" title="Angry">😡</button>
-      </div>
-    </div>
+  <button class="action-btn reaction-btn" data-post-id="{{ post.id }}">
+    <span class="reaction-icon">❤️</span>
+    <span class="reaction-count">{{ post.reactions.count }}</span>
+  </button>
+  <div class="reaction-picker" id="picker-{{ post.id }}">
+    <button class="reaction-option" data-reaction="like" title="Like">❤️</button>
+    <button class="reaction-option" data-reaction="love" title="Love">😍</button>
+    <button class="reaction-option" data-reaction="haha" title="Haha">😂</button>
+    <button class="reaction-option" data-reaction="wow" title="Wow">😮</button>
+    <button class="reaction-option" data-reaction="sad" title="Sad">😢</button>
+    <button class="reaction-option" data-reaction="angry" title="Angry">😡</button>
+  </div>
+</div>
 
     <button class="action-btn comment-toggle">💬 <span>{{ post.comments_count }}</span></button>
 

@@ -1,3 +1,7 @@
+/* ============================================
+   MINISOCIAL — APP.JS (COMPLETE FIXED VERSION)
+   ============================================ */
+
 /* ============ HELPERS ============ */
 function getCookie(name) {
   const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -91,7 +95,7 @@ function updatePostBtn() {
 
 if (postContent) {
   postContent.addEventListener('input', () => {
-    charCount.textContent = postContent.value.length;
+    if (charCount) charCount.textContent = postContent.value.length;
     updatePostBtn();
   });
 }
@@ -140,16 +144,21 @@ if (postBtn) {
     if (video) formData.append('video', video);
 
     postBtn.disabled = true;
-    const res = await fetch('/api/post/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF },
-      body: formData
-    });
-    if (res.ok) {
-      showToast('Post shared! 🎉');
-      setTimeout(() => location.reload(), 400);
-    } else {
-      showToast('Failed to post');
+    try {
+      const res = await fetch('/api/post/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+        body: formData
+      });
+      if (res.ok) {
+        showToast('Post shared! 🎉');
+        setTimeout(() => location.reload(), 400);
+      } else {
+        showToast('Failed to post');
+        postBtn.disabled = false;
+      }
+    } catch (err) {
+      showToast('Network error');
       postBtn.disabled = false;
     }
   });
@@ -169,7 +178,7 @@ const reactionEmojis = {
   angry: '😡',
 };
 
-// Hover / long-press to show picker
+// Show reaction picker on hover / long-press
 document.querySelectorAll('.reaction-wrapper').forEach(wrapper => {
   const picker = wrapper.querySelector('.reaction-picker');
   const btn = wrapper.querySelector('.reaction-btn');
@@ -188,7 +197,7 @@ document.querySelectorAll('.reaction-wrapper').forEach(wrapper => {
   wrapper.addEventListener('mouseleave', () => setTimeout(hide, 250));
 });
 
-// Pick a reaction
+// Pick a specific reaction
 document.addEventListener('click', async (e) => {
   const option = e.target.closest('.reaction-option');
   if (!option) return;
@@ -198,46 +207,58 @@ document.addEventListener('click', async (e) => {
   const postId = btn.dataset.postId;
   const reaction = option.dataset.reaction;
 
-  const res = await fetch(`/api/reaction/${postId}/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': CSRF,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ reaction })
-  });
+  try {
+    const res = await fetch(`/api/reaction/${postId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ reaction })
+    });
 
-  const data = await res.json();
-  if (res.ok) {
-    btn.querySelector('.reaction-icon').textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
-    btn.querySelector('.reaction-count').textContent = Object.values(data.counts).reduce((a, b) => a + b, 0);
-    btn.className = 'action-btn reaction-btn';
-    if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
-    wrapper.querySelector('.reaction-picker').classList.remove('show');
+    const data = await res.json();
+    if (res.ok) {
+      const iconEl = btn.querySelector('.reaction-icon');
+      const countEl = btn.querySelector('.reaction-count');
+      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
+      if (countEl) countEl.textContent = Object.values(data.counts || {}).reduce((a, b) => a + b, 0);
+      btn.className = 'action-btn reaction-btn';
+      if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
+      wrapper.querySelector('.reaction-picker').classList.remove('show');
+    }
+  } catch (err) {
+    console.error('Reaction error:', err);
   }
 });
 
-// Quick like on click (no long press)
+// Quick like on click
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.reaction-btn');
   if (!btn || e.target.closest('.reaction-option')) return;
 
   const postId = btn.dataset.postId;
-  const res = await fetch(`/api/reaction/${postId}/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': CSRF,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ reaction: 'like' })
-  });
+  try {
+    const res = await fetch(`/api/reaction/${postId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ reaction: 'like' })
+    });
 
-  const data = await res.json();
-  if (res.ok) {
-    btn.querySelector('.reaction-icon').textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
-    btn.querySelector('.reaction-count').textContent = Object.values(data.counts).reduce((a, b) => a + b, 0);
-    btn.className = 'action-btn reaction-btn';
-    if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
+    const data = await res.json();
+    if (res.ok) {
+      const iconEl = btn.querySelector('.reaction-icon');
+      const countEl = btn.querySelector('.reaction-count');
+      if (iconEl) iconEl.textContent = data.reaction ? reactionEmojis[data.reaction] : '🤍';
+      if (countEl) countEl.textContent = Object.values(data.counts || {}).reduce((a, b) => a + b, 0);
+      btn.className = 'action-btn reaction-btn';
+      if (data.reaction) btn.classList.add(`reacted-${data.reaction}`);
+    }
+  } catch (err) {
+    console.error('Like error:', err);
   }
 });
 
@@ -250,20 +271,24 @@ document.addEventListener('submit', async (e) => {
   const content = input.value.trim();
   if (!content) return;
 
-  const res = await fetch(`/api/comment/${form.dataset.postId}/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': CSRF,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ content })
-  });
-  const data = await res.json();
-  if (res.ok) {
-    const div = createCommentElement(data.author, data.content, false, data.id);
-    form.parentElement.insertBefore(div, form);
-    input.value = '';
-    showToast('Comment added 💬');
+  try {
+    const res = await fetch(`/api/comment/${form.dataset.postId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ content })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const div = createCommentElement(data.author, data.content, false, data.id);
+      form.parentElement.insertBefore(div, form);
+      input.value = '';
+      showToast('Comment added 💬');
+    }
+  } catch (err) {
+    console.error('Comment error:', err);
   }
 });
 
@@ -274,23 +299,27 @@ document.addEventListener('click', async (e) => {
   const text = prompt('Reply:');
   if (!text || !text.trim()) return;
 
-  const res = await fetch(`/api/comment/${btn.dataset.postId}/`, {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': CSRF,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      content: text.trim(),
-      parent_id: btn.dataset.commentId
-    })
-  });
-  const data = await res.json();
-  if (res.ok) {
-    const parent = btn.closest('.comment');
-    const reply = createCommentElement(data.author, data.content, true, data.id);
-    parent.appendChild(reply);
-    showToast('Reply added 💬');
+  try {
+    const res = await fetch(`/api/comment/${btn.dataset.postId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        content: text.trim(),
+        parent_id: btn.dataset.commentId
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const parent = btn.closest('.comment');
+      const reply = createCommentElement(data.author, data.content, true, data.id);
+      parent.appendChild(reply);
+      showToast('Reply added 💬');
+    }
+  } catch (err) {
+    console.error('Reply error:', err);
   }
 });
 
@@ -298,16 +327,21 @@ document.addEventListener('click', async (e) => {
 const followBtn = document.getElementById('follow-btn');
 if (followBtn) {
   followBtn.addEventListener('click', async () => {
-    const res = await fetch(`/api/follow/${followBtn.dataset.username}/`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      followBtn.classList.toggle('following', data.following);
-      followBtn.textContent = data.following ? 'Following ✓' : 'Follow +';
-      document.getElementById('followers-count').textContent = data.followers_count;
-      showToast(data.following ? 'Now following!' : 'Unfollowed');
+    try {
+      const res = await fetch(`/api/follow/${followBtn.dataset.username}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        followBtn.classList.toggle('following', data.following);
+        followBtn.textContent = data.following ? 'Following ✓' : 'Follow +';
+        const fc = document.getElementById('followers-count');
+        if (fc) fc.textContent = data.followers_count;
+        showToast(data.following ? 'Now following!' : 'Unfollowed');
+      }
+    } catch (err) {
+      console.error('Follow error:', err);
     }
   });
 }
@@ -366,15 +400,19 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.save-btn');
   if (!btn) return;
-  const res = await fetch(`/api/save/${btn.dataset.postId}/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': CSRF }
-  });
-  const data = await res.json();
-  if (res.ok) {
-    btn.classList.toggle('saved', data.saved);
-    btn.innerHTML = data.saved ? '🔖 <span>Saved</span>' : '📑 <span>Save</span>';
-    showToast(data.saved ? 'Post saved 🔖' : 'Removed from saved');
+  try {
+    const res = await fetch(`/api/save/${btn.dataset.postId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.classList.toggle('saved', data.saved);
+      btn.innerHTML = data.saved ? '🔖 <span>Saved</span>' : '📑 <span>Save</span>';
+      showToast(data.saved ? 'Post saved 🔖' : 'Removed from saved');
+    }
+  } catch (err) {
+    console.error('Save error:', err);
   }
 });
 
@@ -436,7 +474,7 @@ if (sentinel && 'IntersectionObserver' in window) {
   observer.observe(sentinel);
 }
 
-/* ============ SUGGESTIONS ============ */
+/* ============ SUGGESTIONS (Left Box) ============ */
 async function loadSuggestions() {
   const box = document.getElementById('suggestions-box');
   const list = document.getElementById('suggestions-list');
@@ -489,118 +527,6 @@ async function loadSuggestions() {
 
 loadSuggestions();
 
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.suggestion-follow');
-  if (!btn) return;
-  const res = await fetch(`/api/follow/${btn.dataset.username}/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': CSRF }
-  });
-  const data = await res.json();
-  if (res.ok) {
-    btn.textContent = 'Following ✓';
-    btn.classList.add('following');
-    showToast('Now following!');
-    setTimeout(() => {
-      const card = btn.closest('.suggestion-card');
-      if (card) card.remove();
-    }, 800);
-  }
-});
-
-/* ============ LOAD SUGGESTIONS IN RIGHT SIDEBAR ============ */
-async function loadRightSidebarSuggestions() {
-  const list = document.getElementById('suggestions-list');
-  if (!list) return;
-
-  try {
-    const res = await fetch('/api/suggestions/');
-    const data = await res.json();
-
-    if (!data.users || data.users.length === 0) {
-      list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">No suggestions yet</p>';
-      return;
-    }
-
-    list.innerHTML = '';
-    data.users.forEach(u => {
-      const item = document.createElement('div');
-      item.className = 'suggestion-item';
-      item.innerHTML = `
-        <a href="/profile/${u.username}/" class="avatar" style="width:38px;height:38px;font-size:.85rem;text-decoration:none;">
-          ${u.avatar
-            ? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`
-            : u.username[0].toUpperCase()
-          }
-        </a>
-        <div class="suggestion-info">
-          <strong>${u.username}</strong>
-          <small>${u.followers} followers</small>
-        </div>
-        <button class="suggestion-follow" data-username="${u.username}">Follow</button>
-      `;
-      list.appendChild(item);
-    });
-  } catch (e) {
-    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">Failed to load</p>';
-  }
-}
-
-
-
-// Handle follow button in right sidebar
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.suggestion-follow');
-  if (!btn || btn.classList.contains('following')) return;
-
-  const res = await fetch(`/api/follow/${btn.dataset.username}/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': CSRF }
-  });
-  const data = await res.json();
-  if (res.ok) {
-    btn.textContent = 'Following ✓';
-    btn.classList.add('following');
-    showToast('Now following!');
-  }
-});
-
-
-/* ============ LIVE NOTIFICATION BELL ============ */
-const notifBell = document.getElementById('notif-bell');
-
-if (notifBell) {
-  setInterval(async () => {
-    try {
-      const res = await fetch('/api/unread/');
-      const data = await res.json();
-
-      let badge = document.getElementById('notif-badge');
-      if (data.count > 0) {
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.id = 'notif-badge';
-          badge.className = 'badge';
-          notifBell.appendChild(badge);
-        }
-        const prev = badge.textContent;
-        badge.textContent = data.count;
-        if (prev !== String(data.count)) {
-          badge.animate([
-            { transform: 'scale(1)' },
-            { transform: 'scale(1.4)' },
-            { transform: 'scale(1)' },
-          ], { duration: 400, easing: 'ease-out' });
-        }
-      } else if (badge) {
-        badge.remove();
-      }
-    } catch (err) {
-      // silent fail
-    }
-  }, 15000);
-}
-
 /* ============ LOAD RIGHT SIDEBAR SUGGESTIONS ============ */
 async function loadRightSidebarSuggestions() {
   const list = document.getElementById('suggestions-list');
@@ -640,3 +566,116 @@ async function loadRightSidebarSuggestions() {
 }
 
 loadRightSidebarSuggestions();
+
+/* ============ SUGGESTION FOLLOW HANDLER ============ */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.suggestion-follow');
+  if (!btn || btn.classList.contains('following')) return;
+
+  try {
+    const res = await fetch(`/api/follow/${btn.dataset.username}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = 'Following ✓';
+      btn.classList.add('following');
+      showToast('Now following!');
+      setTimeout(() => {
+        const card = btn.closest('.suggestion-card');
+        if (card) card.remove();
+      }, 800);
+    }
+  } catch (err) {
+    console.error('Follow error:', err);
+  }
+});
+
+/* ============ LIVE NOTIFICATION BELL ============ */
+const notifBell = document.getElementById('notif-bell');
+
+if (notifBell) {
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/unread/');
+      const data = await res.json();
+
+      let badge = document.getElementById('notif-badge');
+      if (data.count > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.id = 'notif-badge';
+          badge.className = 'badge';
+          notifBell.appendChild(badge);
+        }
+        const prev = badge.textContent;
+        badge.textContent = data.count;
+        if (prev !== String(data.count)) {
+          badge.animate([
+            { transform: 'scale(1)' },
+            { transform: 'scale(1.4)' },
+            { transform: 'scale(1)' },
+          ], { duration: 400, easing: 'ease-out' });
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    } catch (err) {
+      // silent fail
+    }
+  }, 15000);
+}
+
+/* ============ SEND FRIEND REQUEST ============ */
+async function sendFriendRequest(userId) {
+  try {
+    const res = await fetch(`/friend-request/send/${userId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await res.json();
+    if (data.status === 'sent' || data.status === 'accepted') {
+      showToast('✅ Send the Friend Request');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      showToast('❌ ' + (data.msg || 'Something went wrong'));
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+
+/* ============ ACCEPT FRIEND REQUEST ============ */
+async function acceptRequest(reqId) {
+  try {
+    const res = await fetch(`/friend-request/accept/${reqId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await res.json();
+    if (data.status === 'accepted') {
+      showToast('✅ Friend request accepted!');
+      setTimeout(() => location.reload(), 1200);
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+
+/* ============ REJECT FRIEND REQUEST ============ */
+async function rejectRequest(reqId) {
+  try {
+    const res = await fetch(`/friend-request/reject/${reqId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await res.json();
+    if (data.status === 'rejected') {
+      showToast('❌ Friend request rejected');
+      setTimeout(() => location.reload(), 1200);
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
