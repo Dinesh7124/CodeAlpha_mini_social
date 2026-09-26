@@ -663,6 +663,88 @@ async function acceptRequest(reqId) {
   }
 }
 
+/* ============ SHARE MODAL ============ */
+let currentSharePostId = null;
+
+async function openShareModal(postId) {
+  currentSharePostId = postId;
+  document.getElementById('shareModal').style.display = 'flex';
+
+  const list = document.getElementById('shareFriendsList');
+  list.innerHTML = '<div class="skeleton" style="height:60px;margin-bottom:.5rem;"></div>';
+
+  try {
+    const res = await fetch('/api/friends/');
+    const data = await res.json();
+
+    if (!data.friends || data.friends.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No friends yet. Add friends to share posts!</p>';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.friends.forEach(f => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.75rem;border-radius:12px;cursor:pointer;transition:all .2s;';
+      item.onmouseover = () => item.style.background = 'var(--hover)';
+      item.onmouseout = () => item.style.background = 'transparent';
+      item.innerHTML = `
+        ${f.avatar 
+          ? `<img src="${f.avatar}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">`
+          : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">${f.username[0].toUpperCase()}</div>`
+        }
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:.92rem;">${f.full_name}</div>
+          <div style="color:var(--text-muted);font-size:.78rem;">@${f.username}</div>
+        </div>
+        <button style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;padding:.5rem 1rem;border-radius:50px;font-weight:700;font-size:.82rem;cursor:pointer;">
+          Send
+        </button>
+      `;
+      item.onclick = () => sendShare(f.id);
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Failed to load friends</p>';
+  }
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').style.display = 'none';
+  document.getElementById('shareMessage').value = '';
+  currentSharePostId = null;
+}
+
+async function sendShare(recipientId) {
+  const message = document.getElementById('shareMessage').value.trim();
+
+  try {
+    const res = await fetch(`/api/share/${currentSharePostId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ recipient_id: recipientId, message })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast(`✅ Post shared with ${data.shared_with}!`);
+      closeShareModal();
+    } else {
+      showToast('❌ Failed to share');
+    }
+  } catch (err) {
+    showToast('❌ Network error');
+  }
+}
+
+// Modal close on outside click
+document.getElementById('shareModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'shareModal') closeShareModal();
+});
+
 /* ============ REJECT FRIEND REQUEST ============ */
 async function rejectRequest(reqId) {
   try {
