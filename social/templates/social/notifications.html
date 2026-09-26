@@ -1,23 +1,76 @@
 {% extends 'social/base.html' %}
 {% block title %}Notifications — MiniSocial{% endblock %}
-{% block content %}
-<h2 style="margin-bottom: 1.5rem;">🔔 Notifications</h2>
 
-{% for n in notifications %}
-<div class="post" style="padding: 1rem;">
-  <div style="display: flex; gap: .75rem; align-items: center;">
-    <span class="avatar">{{ n.sender.username|first }}</span>
-    <div style="flex: 1;">
-      <a href="{% url 'profile' n.sender.username %}" style="font-weight: 700;">{{ n.sender.username }}</a>
-      {% if n.notif_type == 'like' %}liked your post
-      {% elif n.notif_type == 'comment' %}commented on your post
-      {% elif n.notif_type == 'follow' %}started following you{% endif %}
-      <span class="time" style="display: block;">{{ n.created_at|timesince }} ago</span>
-    </div>
-    <span>{% if n.notif_type == 'like' %}❤️{% elif n.notif_type == 'comment' %}💬{% else %}👥{% endif %}</span>
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <h2 style="font-size:1.5rem;font-weight:900;display:flex;align-items:center;gap:.5rem;">
+      🔔 Notifications
+    </h2>
   </div>
+
+  {% if notifications %}
+  <div style="display:flex;flex-direction:column;gap:.5rem;">
+    {% for n in notifications %}
+    <a href="{% if n.post %}{% url 'profile' n.sender.username %}{% else %}{% url 'profile' n.sender.username %}{% endif %}"
+       style="display:flex;align-items:center;gap:1rem;padding:1rem;border-radius:12px;background:{% if not n.is_read %}linear-gradient(90deg,rgba(99,102,241,.08),transparent){% else %}var(--bg){% endif %};text-decoration:none;color:var(--text);transition:all .2s;border:1px solid var(--border);"
+       onmouseover="this.style.borderColor='var(--primary)'"
+       onmouseout="this.style.borderColor='var(--border)'">
+
+      <!-- Icon -->
+      <div style="width:48px;height:48px;border-radius:50%;background:{% if n.notif_type == 'like' %}linear-gradient(135deg,#ef4444,#ec4899){% elif n.notif_type == 'comment' %}linear-gradient(135deg,#10b981,#06b6d4){% elif n.notif_type == 'follow' %}linear-gradient(135deg,#6366f1,#8b5cf6){% elif n.notif_type == 'friend_request' %}linear-gradient(135deg,#f59e0b,#f97316){% elif n.notif_type == 'friend_accept' %}linear-gradient(135deg,#10b981,#059669){% elif n.notif_type == 'message' %}linear-gradient(135deg,#6366f1,#ec4899){% endif %};display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.25rem;flex-shrink:0;">
+        {% if n.notif_type == 'like' %}❤️
+        {% elif n.notif_type == 'comment' %}💬
+        {% elif n.notif_type == 'follow' %}👥
+        {% elif n.notif_type == 'friend_request' %}➕
+        {% elif n.notif_type == 'friend_accept' %}✅
+        {% elif n.notif_type == 'message' %}✉️
+        {% endif %}
+      </div>
+
+      <!-- Sender Avatar -->
+      <div style="flex-shrink:0;">
+        {% if n.sender.profile.avatar %}
+          <img src="{{ n.sender.profile.avatar.url }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--card);">
+        {% else %}
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">
+            {{ n.sender.username|first|upper }}
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Text -->
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.92rem;line-height:1.4;">
+          <strong>{{ n.sender.get_full_name|default:n.sender.username }}</strong>
+          {% if n.notif_type == 'like' %} ❤️ liked your post
+          {% elif n.notif_type == 'comment' %} 💬 commented on your post
+          {% elif n.notif_type == 'follow' %} 👥 started following you
+          {% elif n.notif_type == 'friend_request' %} ➕ sent you a friend request
+          {% elif n.notif_type == 'friend_accept' %} ✅ accepted your friend request
+          {% elif n.notif_type == 'message' %} ✉️ sent you a message
+          {% endif %}
+        </div>
+        <div style="color:var(--text-muted);font-size:.78rem;margin-top:.25rem;">
+          @{{ n.sender.username }} · {{ n.created_at|timesince }} ago
+        </div>
+      </div>
+
+      <!-- Unread Dot -->
+      {% if not n.is_read %}
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0;"></div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:3rem 1.5rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🔔</div>
+    <h3 style="font-size:1.25rem;font-weight:900;margin-bottom:.5rem;">No notifications yet</h3>
+    <p style="color:var(--text-muted);font-size:.92rem;">When someone likes, comments, or follows you, you'll see it here.</p>
+  </div>
+  {% endif %}
+
 </div>
-{% empty %}
-<div class="empty"><h3>No notifications yet</h3></div>
-{% endfor %}
 {% endblock %}

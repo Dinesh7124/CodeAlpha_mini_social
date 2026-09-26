@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>📥 Inbox</h3>
+<div class="inbox-list">
+    {% for item in data %}
+    <a href="{% url 'chat_room' item.conv.id %}" class="inbox-item">
+        <b>{{ item.other.username }}</b>
+        {% if item.last %}
+        <span>{{ item.last.text|truncatechars:30 }}</span>
+        {% else %}
+        <span>No messages yet</span>
+        {% endif %}
+        {% if item.unread %}<span class="badge">{{ item.unread }}</span>{% endif %}
+    </a>
+    {% empty %}
+    <p>No conversations yet</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'social/base.html' %}
+{% block title %}Explore — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+  <h2 style="font-size:1.5rem;font-weight:900;margin-bottom:1.5rem;">🔥 Explore Hashtags</h2>
+
+  {% if trending %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;">
+    {% for h in trending %}
+    <a href="{% url 'hashtag_posts' h.name %}" style="text-decoration:none;">
+      <div style="background:var(--bg);border-radius:14px;padding:1.25rem;border:1px solid var(--border);transition:all .25s;">
+        <div style="font-size:1.25rem;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.35rem;">
+          #{{ h.name }}
+        </div>
+        <div style="color:var(--text-muted);font-size:.85rem;">
+          {{ h.post_count }} post{{ h.post_count|pluralize }}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" style="text-align:center;padding:3rem;">
+    <div style="font-size:3.5rem;margin-bottom:.75rem;">🔍</div>
+    <h3>No hashtags yet</h3>
+    <p style="color:var(--text-muted);font-size:.9rem;">Start posting with #hashtags!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

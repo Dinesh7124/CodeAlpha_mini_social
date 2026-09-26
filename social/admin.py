@@ -1,85 +1,86 @@
 from django.contrib import admin
 from .models import (
-    Profile, Post, Comment, Like, Follow,
-    Notification, Message, Story, SavedPost, Reaction
+    Profile, Post, Comment, Like, Reaction, Follow,
+    Notification, Story, SavedPost, PasswordResetOTP,
+    FriendRequest, Friendship, Conversation, Message
 )
 
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'location', 'followers_count', 'following_count')
-    search_fields = ('user__username', 'bio')
+    list_display = ('user', 'role', 'is_banned', 'created_at')
+    list_filter = ('role', 'is_banned')
+    search_fields = ('user__username', 'user__email', 'phone_number')
 
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-    list_display = ('id', 'author', 'short_content', 'likes_count', 'comments_count', 'created_at')
-    search_fields = ('content', 'author__username')
-    list_filter = ('created_at', 'author')
-    date_hierarchy = 'created_at'
-    ordering = ('-created_at',)
-
-    def short_content(self, obj):
-        return obj.content[:50] + ('...' if len(obj.content) > 50 else '')
-    short_content.short_description = 'Content'
+    list_display = ('id', 'author', 'privacy', 'created_at')
+    list_filter = ('privacy', 'created_at')
+    search_fields = ('author__username', 'content')
 
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'author', 'post', 'short_content', 'parent', 'created_at')
-    search_fields = ('content', 'author__username')
-    list_filter = ('created_at',)
-    ordering = ('-created_at',)
-
-    def short_content(self, obj):
-        return obj.content[:50]
-    short_content.short_description = 'Comment'
+    list_display = ('id', 'author', 'post', 'parent', 'created_at')
+    search_fields = ('author__username', 'content')
 
 
 @admin.register(Like)
 class LikeAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'post', 'created_at')
-    list_filter = ('created_at',)
-
-
-@admin.register(Follow)
-class FollowAdmin(admin.ModelAdmin):
-    list_display = ('id', 'follower', 'following', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('follower__username', 'following__username')
-
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'recipient', 'sender', 'notif_type', 'is_read', 'created_at')
-    list_filter = ('notif_type', 'is_read', 'created_at')
-
-
-@admin.register(Message)
-class MessageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sender', 'recipient', 'short_content', 'is_read', 'created_at')
-    list_filter = ('is_read', 'created_at')
-    search_fields = ('sender__username', 'recipient__username', 'content')
-
-    def short_content(self, obj):
-        return obj.content[:50]
-    short_content.short_description = 'Message'
-
-
-@admin.register(Story)
-class StoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'author', 'caption', 'is_active', 'created_at')
-    list_filter = ('created_at',)
-
-
-@admin.register(SavedPost)
-class SavedPostAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'post', 'created_at')
-    list_filter = ('created_at',)
 
 
 @admin.register(Reaction)
 class ReactionAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'post', 'reaction_type', 'created_at')
-    list_filter = ('reaction_type', 'created_at')
-    search_fields = ('user__username',)
+    list_filter = ('reaction_type',)
+
+
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = ('id', 'follower', 'following', 'created_at')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'recipient', 'sender', 'notif_type', 'is_read', 'created_at')
+    list_filter = ('notif_type', 'is_read')
+
+
+@admin.register(Story)
+class StoryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'author', 'caption', 'created_at')
+
+
+@admin.register(SavedPost)
+class SavedPostAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'post', 'created_at')
+
+
+@admin.register(PasswordResetOTP)
+class PasswordResetOTPAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'otp', 'is_used', 'created_at')
+
+
+@admin.register(FriendRequest)
+class FriendRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'from_user', 'to_user', 'status', 'created_at')
+    list_filter = ('status',)
+
+
+@admin.register(Friendship)
+class FriendshipAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user1', 'user2', 'created_at')
+
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user1', 'user2', 'created_at')
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'sender', 'text', 'is_read', 'created_at')
+    list_filter = ('is_read',)
+    search_fields = ('sender__username', 'text')

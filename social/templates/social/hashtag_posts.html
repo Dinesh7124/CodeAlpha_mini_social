@@ -1,0 +1,42 @@
+{% extends 'social/base.html' %}
+{% block title %}#{{ tag }} — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;">
+    <h2 style="font-size:1.75rem;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+      #{{ tag }}
+    </h2>
+    <a href="{% url 'explore' %}" class="btn btn-secondary" style="text-decoration:none;">← Back</a>
+  </div>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-top:.5rem;">
+    {{ posts|length }} post{{ posts|length|pluralize }} found
+  </p>
+</div>
+
+{% for post in posts %}
+<div class="post">
+  <div class="post-header">
+    <a href="{% url 'profile' post.author.username %}" class="avatar">
+      {% if post.author.profile.avatar %}
+        <img src="{{ post.author.profile.avatar.url }}">
+      {% else %}
+        {{ post.author.username|first }}
+      {% endif %}
+    </a>
+    <div class="post-meta">
+      <a href="{% url 'profile' post.author.username %}" class="author">{{ post.author.username }}</a>
+      <span class="time">{{ post.created_at|date:"M d, H:i" }}</span>
+    </div>
+  </div>
+  {% if post.content %}<p class="post-content">{{ post.content }}</p>{% endif %}
+  {% if post.image %}<img src="{{ post.image.url }}" class="post-image">{% endif %}
+</div>
+{% empty %}
+<div class="empty" style="text-align:center;padding:3rem;">
+  <div style="font-size:3.5rem;margin-bottom:.75rem;">#️⃣</div>
+  <h3>No posts with #{{ tag }}</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;">Be the first to post with this hashtag!</p>
+</div>
+{% endfor %}
+{% endblock %}

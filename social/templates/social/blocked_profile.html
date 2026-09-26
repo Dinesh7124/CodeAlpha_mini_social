@@ -1,0 +1,13 @@
+{% extends 'social/base.html' %}
+{% block title %}Blocked — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:3rem 1.5rem;text-align:center;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+  <div style="font-size:4rem;margin-bottom:1rem;">🚫</div>
+  <h2 style="font-size:1.5rem;font-weight:900;margin-bottom:.5rem;">User Blocked</h2>
+  <p style="color:var(--text-muted);font-size:.95rem;margin-bottom:1.5rem;">
+    You can't view this profile because one of you has blocked the other.
+  </p>
+  <a href="{% url 'feed' %}" class="btn btn-primary" style="text-decoration:none;">🏠 Go to Feed</a>
+</div>
+{% endblock %}

@@ -508,6 +508,64 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+/* ============ LOAD SUGGESTIONS IN RIGHT SIDEBAR ============ */
+async function loadRightSidebarSuggestions() {
+  const list = document.getElementById('suggestions-list');
+  if (!list) return;
+
+  try {
+    const res = await fetch('/api/suggestions/');
+    const data = await res.json();
+
+    if (!data.users || data.users.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">No suggestions yet</p>';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.users.forEach(u => {
+      const item = document.createElement('div');
+      item.className = 'suggestion-item';
+      item.innerHTML = `
+        <a href="/profile/${u.username}/" class="avatar" style="width:38px;height:38px;font-size:.85rem;text-decoration:none;">
+          ${u.avatar
+            ? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`
+            : u.username[0].toUpperCase()
+          }
+        </a>
+        <div class="suggestion-info">
+          <strong>${u.username}</strong>
+          <small>${u.followers} followers</small>
+        </div>
+        <button class="suggestion-follow" data-username="${u.username}">Follow</button>
+      `;
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">Failed to load</p>';
+  }
+}
+
+
+
+// Handle follow button in right sidebar
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.suggestion-follow');
+  if (!btn || btn.classList.contains('following')) return;
+
+  const res = await fetch(`/api/follow/${btn.dataset.username}/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF }
+  });
+  const data = await res.json();
+  if (res.ok) {
+    btn.textContent = 'Following ✓';
+    btn.classList.add('following');
+    showToast('Now following!');
+  }
+});
+
+
 /* ============ LIVE NOTIFICATION BELL ============ */
 const notifBell = document.getElementById('notif-bell');
 
@@ -542,3 +600,43 @@ if (notifBell) {
     }
   }, 15000);
 }
+
+/* ============ LOAD RIGHT SIDEBAR SUGGESTIONS ============ */
+async function loadRightSidebarSuggestions() {
+  const list = document.getElementById('suggestions-list');
+  if (!list) return;
+
+  try {
+    const res = await fetch('/api/suggestions/');
+    const data = await res.json();
+
+    if (!data.users || data.users.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">No suggestions yet</p>';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.users.forEach(u => {
+      const item = document.createElement('div');
+      item.className = 'suggestion-item';
+      item.innerHTML = `
+        <a href="/profile/${u.username}/" class="avatar" style="width:38px;height:38px;font-size:.85rem;text-decoration:none;">
+          ${u.avatar
+            ? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`
+            : u.username[0].toUpperCase()
+          }
+        </a>
+        <div class="suggestion-info">
+          <strong>${u.username}</strong>
+          <small>${u.followers} followers</small>
+        </div>
+        <button class="suggestion-follow" data-username="${u.username}">Follow</button>
+      `;
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;padding:.5rem 1rem;">Failed to load</p>';
+  }
+}
+
+loadRightSidebarSuggestions();

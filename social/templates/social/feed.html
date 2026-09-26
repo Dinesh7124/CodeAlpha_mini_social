@@ -2,7 +2,7 @@
 {% block title %}Home — MiniSocial{% endblock %}
 
 {% block content %}
-<!-- Stories bar -->
+<!-- Stories Bar -->
 <div class="stories-bar">
   <a href="{% url 'create_story' %}" class="story-item add-story">
     <div class="story-avatar">+</div>
@@ -27,80 +27,6 @@
   </a>
   {% endif %}
 </div>
-
-class Reaction(models.Model):
-    post = models.ForeignKey(Post, related_name='reactions', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    reaction = models.CharField(max_length=10, default='like')
-
-    class Meta:
-        unique_together = ('post', 'user')   # ⚠️ YE ZAROORI HAI
-
-<script>
-const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-// LIKE / REACTION
-document.querySelectorAll('.reaction-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        const postId = this.dataset.post;
-        const reaction = this.dataset.reaction;
-
-        fetch(`/post/${postId}/like/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: new URLSearchParams({ reaction: reaction })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'ok') {
-                const counter = document.querySelector(`#like-count-${postId}`);
-                if (counter) counter.textContent = data.count;
-                // highlight active reaction
-                document.querySelectorAll(`.reaction-btn[data-post="${postId}"]`)
-                    .forEach(b => b.classList.remove('active'));
-                if (data.liked) {
-                    this.classList.add('active');
-                }
-            }
-        });
-    });
-});
-
-// COMMENT
-document.querySelectorAll('.comment-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const postId = this.dataset.post;
-        const input = this.querySelector('input[name=text]');
-        const text = input.value.trim();
-        if (!text) return;
-
-        fetch(`/post/${postId}/comment/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: new URLSearchParams({ text: text })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'ok') {
-                const list = document.querySelector(`#comments-${postId}`);
-                const div = document.createElement('div');
-                div.className = 'comment-item';
-                div.innerHTML = `<b>${data.user}</b> ${data.text} <small>${data.time}</small>`;
-                list.prepend(div);
-                input.value = '';
-            }
-        });
-    });
-});
-</script>
 
 <!-- People You May Know -->
 <div id="suggestions-box" class="suggestions-box" style="display:none;">

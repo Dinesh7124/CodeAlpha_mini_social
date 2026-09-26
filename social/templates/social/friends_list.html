@@ -1,0 +1,72 @@
+{% extends 'social/base.html' %}
+{% block title %}My Friends — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
+    <h2 style="font-size:1.5rem;font-weight:900;display:flex;align-items:center;gap:.5rem;">
+      👥 My Friends
+      <span style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;padding:.15rem .65rem;border-radius:50px;font-size:.8rem;font-weight:800;">
+        {{ total_friends }}
+      </span>
+    </h2>
+    <a href="{% url 'friend_requests_list' %}" class="btn btn-secondary" style="text-decoration:none;">
+      📥 Requests
+    </a>
+  </div>
+
+  <!-- Friends Grid -->
+  {% if friends %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
+    {% for friend in friends %}
+    <div class="friend-card" style="background:var(--bg);border-radius:14px;padding:1.25rem;border:1px solid var(--border);transition:all .25s;text-align:center;">
+      <a href="{% url 'profile' friend.username %}" style="text-decoration:none;display:block;">
+        {% if friend.profile.avatar %}
+          <img src="{{ friend.profile.avatar.url }}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto .75rem;display:block;border:3px solid var(--card);box-shadow:var(--shadow-sm);">
+        {% else %}
+          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:1.75rem;margin:0 auto .75rem;border:3px solid var(--card);box-shadow:var(--shadow-sm);">
+            {{ friend.username|first|upper }}
+          </div>
+        {% endif %}
+        <div style="font-weight:800;font-size:1rem;color:var(--text);margin-bottom:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ friend.get_full_name|default:friend.username }}
+        </div>
+        <div style="color:var(--text-muted);font-size:.82rem;">@{{ friend.username }}</div>
+      </a>
+
+      <div style="display:flex;gap:.4rem;margin-top:1rem;">
+        <a href="{% url 'start_chat' friend.id %}" class="btn btn-primary" style="flex:1;padding:.55rem;font-size:.82rem;text-decoration:none;">
+          💬 Message
+        </a>
+        <a href="{% url 'profile' friend.username %}" class="btn btn-secondary" style="padding:.55rem .85rem;font-size:.82rem;text-decoration:none;">
+          👤
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" style="padding:4rem 1.5rem;text-align:center;">
+    <div style="font-size:4rem;margin-bottom:.75rem;">👥</div>
+    <h3 style="margin-bottom:.5rem;">No friends yet</h3>
+    <p style="color:var(--text-muted);font-size:.92rem;margin-bottom:1.25rem;">
+      Start connecting with people by sending friend requests!
+    </p>
+    <a href="{% url 'feed' %}" class="btn btn-primary" style="text-decoration:none;">
+      🏠 Go to Feed
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+.friend-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+  border-color: var(--primary-light) !important;
+}
+</style>
+{% endblock %}

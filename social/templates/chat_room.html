@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="chat-container">
+    <h3>Chat with {{ other.username }}</h3>
+    <div id="messages" class="messages-box">
+        {% for m in chat_messages %}
+        <div class="msg {% if m.sender == request.user %}mine{% else %}theirs{% endif %}">
+            <b>{{ m.sender.username }}</b>: {{ m.text }}
+            <small>{{ m.created_at|time:"H:i" }}</small>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form id="msgForm" data-conv="{{ conv.id }}">
+        {% csrf_token %}
+        <input type="text" name="text" id="msgInput" placeholder="Type message..." autocomplete="off">
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+document.getElementById('msgForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const convId = this.dataset.conv;
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if(!text) return;
+
+    fetch(`/chat/${convId}/send/`, {
+        method:'POST',
+        headers:{'X-CSRFToken':csrftoken,'X-Requested-With':'XMLHttpRequest'},
+        body: new URLSearchParams({text:text})
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        if(data.status==='ok'){
+            const box = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'msg mine';
+            div.innerHTML = `<b>${data.sender}</b>: ${data.text} <small>${data.time}</small>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+            input.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

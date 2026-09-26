@@ -22,9 +22,9 @@
     {% if profile_user.profile.bio %}<p class="profile-bio">{{ profile_user.profile.bio }}</p>{% endif %}
 
     <div class="profile-meta">
-  {% if profile_user.profile.location %}<span>📍 {{ profile_user.profile.location }}</span>{% endif %}
-  {% if profile_user.profile.website %}<span>🔗 <a href="{{ profile_user.profile.website }}" target="_blank" rel="noopener">{{ profile_user.profile.website }}</a></span>{% endif %}
-</div>
+      {% if profile_user.profile.location %}<span>📍 {{ profile_user.profile.location }}</span>{% endif %}
+      {% if profile_user.profile.website %}<span>🔗 <a href="{{ profile_user.profile.website }}" target="_blank" rel="noopener">{{ profile_user.profile.website }}</a></span>{% endif %}
+    </div>
 
     <div class="stats">
       <div class="stat"><strong id="followers-count">{{ profile_user.profile.followers_count }}</strong><span>Followers</span></div>
@@ -32,12 +32,48 @@
       <div class="stat"><strong>{{ posts.count }}</strong><span>Posts</span></div>
     </div>
 
+    {# ============ ACTION BUTTONS ============ #}
     {% if profile_user == user %}
       <a href="{% url 'edit_profile' %}" class="follow-btn" style="display:block;text-align:center;text-decoration:none;">✏️ Edit Profile</a>
+
     {% else %}
-      <button id="follow-btn" class="follow-btn {% if is_following %}following{% endif %}" data-username="{{ profile_user.username }}">
-        {% if is_following %}Following ✓{% else %}Follow +{% endif %}
-      </button>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+
+        {# ---------- FRIEND BUTTON ---------- #}
+        {% if friend_status == 'friends' %}
+          <a href="{% url 'start_chat' profile_user.id %}" class="follow-btn" style="flex:1;text-align:center;text-decoration:none;">
+            💬 Message
+          </a>
+          <span class="follow-btn following" style="flex:1;text-align:center;cursor:default;">
+            ✅ Friends
+          </span>
+
+        {% elif friend_status == 'sent' %}
+          <span class="follow-btn following" style="flex:1;text-align:center;cursor:default;">
+            ⏳ Request Sent
+          </span>
+
+        {% elif friend_status == 'received' %}
+          <button class="follow-btn" style="flex:1;" onclick="acceptRequest({{ pending_req.id }})">
+            ✅ Accept Request
+          </button>
+          <button class="follow-btn following" style="flex:1;" onclick="rejectRequest({{ pending_req.id }})">
+            ❌ Reject
+          </button>
+
+        {% else %}
+          <button class="follow-btn" style="flex:1;" onclick="sendFriendRequest({{ profile_user.id }})">
+            ➕ Add Friend
+          </button>
+        {% endif %}
+
+        {# ---------- FOLLOW BUTTON ---------- #}
+        <button id="follow-btn" class="follow-btn {% if is_following %}following{% endif %}"
+                data-username="{{ profile_user.username }}" style="flex:1;">
+          {% if is_following %}Following ✓{% else %}Follow +{% endif %}
+        </button>
+
+      </div>
     {% endif %}
   </div>
 </div>
@@ -64,4 +100,46 @@
   <p>{{ profile_user.username }} hasn't posted anything yet.</p>
 </div>
 {% endfor %}
+
+<script>
+const CSRF = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')?.pop() || '';
+
+async function sendFriendRequest(userId) {
+  const res = await fetch(`/friend-request/send/${userId}/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+  });
+  const data = await res.json();
+  if (data.status === 'sent' || data.status === 'accepted') {
+    alert(data.msg || 'Friend request sent!');
+    location.reload();
+  } else {
+    alert(data.msg || 'Something went wrong');
+  }
+}
+
+async function acceptRequest(reqId) {
+  const res = await fetch(`/friend-request/accept/${reqId}/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+  });
+  const data = await res.json();
+  if (data.status === 'accepted') {
+    alert('✅ Friend request accepted!');
+    location.reload();
+  }
+}
+
+async function rejectRequest(reqId) {
+  const res = await fetch(`/friend-request/reject/${reqId}/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+  });
+  const data = await res.json();
+  if (data.status === 'rejected') {
+    alert('❌ Friend request rejected');
+    location.reload();
+  }
+}
+</script>
 {% endblock %}

@@ -1,0 +1,149 @@
+{% extends 'social/base.html' %}
+{% block title %}Friends — MiniSocial{% endblock %}
+
+{% block content %}
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+  <h2 style="font-size:1.5rem;font-weight:900;margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem;">
+    👥 Friends
+  </h2>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--border);">
+    <button class="friend-tab active" data-tab="received" style="padding:.75rem 1.25rem;font-weight:800;font-size:.92rem;color:var(--primary);border-bottom:3px solid var(--primary);margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;cursor:pointer;">
+      📥 Received {% if received %}<span style="background:var(--danger);color:#fff;padding:.1rem .5rem;border-radius:50px;font-size:.7rem;margin-left:.35rem;">{{ received|length }}</span>{% endif %}
+    </button>
+    <button class="friend-tab" data-tab="sent" style="padding:.75rem 1.25rem;font-weight:800;font-size:.92rem;color:var(--text-muted);background:none;border:none;cursor:pointer;">
+      📤 Sent {% if sent %}<span style="background:var(--primary);color:#fff;padding:.1rem .5rem;border-radius:50px;font-size:.7rem;margin-left:.35rem;">{{ sent|length }}</span>{% endif %}
+    </button>
+  </div>
+
+  <!-- Received Tab -->
+  <div id="tab-received">
+    {% for req in received %}
+    <div class="friend-request-card" data-req-id="{{ req.id }}" style="display:flex;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--border);border-radius:12px;margin-bottom:.75rem;transition:all .2s;">
+      <a href="{% url 'profile' req.from_user.username %}" style="text-decoration:none;">
+        {% if req.from_user.profile.avatar %}
+          <img src="{{ req.from_user.profile.avatar.url }}" class="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--primary-light);">
+        {% else %}
+          <span class="avatar" style="width:54px;height:54px;font-size:1.2rem;border:2px solid var(--primary-light);">{{ req.from_user.username|first }}</span>
+        {% endif %}
+      </a>
+      <div style="flex:1;min-width:0;">
+        <a href="{% url 'profile' req.from_user.username %}" style="font-weight:800;font-size:1rem;color:var(--text);text-decoration:none;display:block;">
+          {{ req.from_user.get_full_name|default:req.from_user.username }}
+        </a>
+        <small style="color:var(--text-muted);font-size:.82rem;">
+          @{{ req.from_user.username }} · {{ req.created_at|timesince }} ago
+        </small>
+      </div>
+      <div style="display:flex;gap:.5rem;">
+        <button class="accept-btn" data-req="{{ req.id }}" style="padding:.6rem 1.1rem;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.85rem;cursor:pointer;transition:all .2s;">
+          ✅ Accept
+        </button>
+        <button class="reject-btn" data-req="{{ req.id }}" style="padding:.6rem 1.1rem;background:var(--bg);color:var(--danger);border:1.5px solid var(--border);border-radius:10px;font-weight:800;font-size:.85rem;cursor:pointer;transition:all .2s;">
+          ✕ Reject
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty" style="padding:3rem 1.5rem;text-align:center;">
+      <div style="font-size:3.5rem;margin-bottom:.75rem;">📭</div>
+      <h3>No pending requests</h3>
+      <p style="color:var(--text-muted);font-size:.9rem;">When someone sends you a friend request, it will appear here.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Sent Tab -->
+  <div id="tab-sent" style="display:none;">
+    {% for req in sent %}
+    <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--border);border-radius:12px;margin-bottom:.75rem;">
+      <a href="{% url 'profile' req.to_user.username %}" style="text-decoration:none;">
+        {% if req.to_user.profile.avatar %}
+          <img src="{{ req.to_user.profile.avatar.url }}" class="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;">
+        {% else %}
+          <span class="avatar" style="width:54px;height:54px;font-size:1.2rem;">{{ req.to_user.username|first }}</span>
+        {% endif %}
+      </a>
+      <div style="flex:1;min-width:0;">
+        <a href="{% url 'profile' req.to_user.username %}" style="font-weight:800;font-size:1rem;color:var(--text);text-decoration:none;display:block;">
+          {{ req.to_user.get_full_name|default:req.to_user.username }}
+        </a>
+        <small style="color:var(--text-muted);font-size:.82rem;">
+          @{{ req.to_user.username }} · Sent {{ req.created_at|timesince }} ago
+        </small>
+      </div>
+      <span style="padding:.5rem 1rem;background:#fef3c7;color:#92400e;border-radius:50px;font-size:.78rem;font-weight:800;">
+        ⏳ Pending
+      </span>
+    </div>
+    {% empty %}
+    <div class="empty" style="padding:3rem 1.5rem;text-align:center;">
+      <div style="font-size:3.5rem;margin-bottom:.75rem;">📤</div>
+      <h3>No sent requests</h3>
+      <p style="color:var(--text-muted);font-size:.9rem;">Friend requests you send will appear here.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+const CSRF = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')?.pop() || '';
+
+// Tab switching
+document.querySelectorAll('.friend-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.friend-tab').forEach(t => {
+      t.classList.remove('active');
+      t.style.color = 'var(--text-muted)';
+      t.style.borderBottom = 'none';
+    });
+    tab.classList.add('active');
+    tab.style.color = 'var(--primary)';
+    tab.style.borderBottom = '3px solid var(--primary)';
+
+    document.getElementById('tab-received').style.display = tab.dataset.tab === 'received' ? 'block' : 'none';
+    document.getElementById('tab-sent').style.display = tab.dataset.tab === 'sent' ? 'block' : 'none';
+  });
+});
+
+// Accept
+document.querySelectorAll('.accept-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const reqId = btn.dataset.req;
+    const res = await fetch(`/friend-request/accept/${reqId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await res.json();
+    if (data.status === 'accepted') {
+      btn.closest('.friend-request-card').style.transition = 'all .3s';
+      btn.closest('.friend-request-card').style.opacity = '0';
+      btn.closest('.friend-request-card').style.transform = 'translateX(20px)';
+      setTimeout(() => btn.closest('.friend-request-card').remove(), 300);
+      showToast('✅ Friend request accepted!');
+    }
+  });
+});
+
+// Reject
+document.querySelectorAll('.reject-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const reqId = btn.dataset.req;
+    if (!confirm('Reject this friend request?')) return;
+    const res = await fetch(`/friend-request/reject/${reqId}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await res.json();
+    if (data.status === 'rejected') {
+      btn.closest('.friend-request-card').style.transition = 'all .3s';
+      btn.closest('.friend-request-card').style.opacity = '0';
+      btn.closest('.friend-request-card').style.transform = 'translateX(20px)';
+      setTimeout(() => btn.closest('.friend-request-card').remove(), 300);
+      showToast('❌ Request rejected');
+    }
+  });
+});
+</script>
+{% endblock %}

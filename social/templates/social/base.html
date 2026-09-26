@@ -1,18 +1,18 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}MiniSocial{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
   {% if user.is_authenticated %}
   <nav class="navbar">
-    <a href="{% url 'feed' %}" class="logo">MiniSocial</a>
+    <a href="{% url 'feed' %}" class="logo">✨ MiniSocial</a>
 
     <form action="{% url 'search' %}" method="get" class="nav-search">
       <input type="text" name="q" placeholder="Search users, posts, #hashtags..." value="{{ request.GET.q }}">
@@ -20,19 +20,20 @@
 
     <div class="nav-links">
       {% if user.profile.is_admin %}
-      <a href="{% url 'admin_dashboard' %}" class="nav-icon" title="Admin Panel"
-         style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border-color:#f59e0b;">⚙️</a>
+      <a href="{% url 'admin_dashboard' %}" class="nav-icon" title="Admin Panel">⚙️</a>
       {% endif %}
 
       <button class="nav-icon" id="theme-toggle" title="Toggle theme">🌙</button>
 
-      <a href="{% url 'notifications' %}" class="nav-icon notification-bell" id="notif-bell" title="Notifications">
+      <a href="{% url 'notifications' %}" class="nav-icon" id="notif-bell" title="Notifications">
         🔔{% if unread_count %}<span class="badge" id="notif-badge">{{ unread_count }}</span>{% endif %}
       </a>
 
-      <a href="{% url 'inbox' %}" class="nav-icon" title="Messages">💬</a>
+      <a href="{% url 'inbox' %}" class="nav-icon" id="msg-bell" title="Messages">
+        💬{% if unread_messages %}<span class="badge" id="msg-badge">{{ unread_messages }}</span>{% endif %}
+      </a>
+
       <a href="{% url 'stories' %}" class="nav-icon" title="Stories">📸</a>
-      <a href="{% url 'saved_posts' %}" class="nav-icon" title="Saved posts">🔖</a>
 
       <a href="{% url 'profile' user.username %}" class="nav-user">
         {% if user.profile.avatar %}
@@ -42,16 +43,75 @@
         {% endif %}
         <span>{{ user.username }}</span>
       </a>
-
-      <a href="{% url 'logout' %}" class="logout-link">Logout</a>
     </div>
   </nav>
   {% endif %}
 
   {% block body %}
-  <main class="{% block main_class %}container{% endblock %}">
-    {% block content %}{% endblock %}
-  </main>
+  {% if user.is_authenticated %}
+  <div class="app-layout">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar sidebar-left">
+      <div class="sidebar-card">
+        <a href="{% url 'feed' %}" class="sidebar-item {% if request.resolver_match.url_name == 'feed' %}active{% endif %}">
+          <span class="icon">🏠</span> Home
+        </a>
+        <a href="{% url 'profile' user.username %}" class="sidebar-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+          <span class="icon">👤</span> My Profile
+        </a>
+        <a href="{% url 'friends_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'friends_list' %}active{% endif %}">
+          <span class="icon">👥</span> Friends
+        </a>
+        <a href="{% url 'friend_requests_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'friend_requests_list' %}active{% endif %}">
+          <span class="icon">📥</span> Friend Requests
+        </a>
+        <a href="{% url 'inbox' %}" class="sidebar-item {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}">
+          <span class="icon">💬</span> Messages
+        </a>
+        <a href="{% url 'notifications' %}" class="sidebar-item {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}">
+          <span class="icon">🔔</span> Notifications
+        </a>
+        <a href="{% url 'stories' %}" class="sidebar-item {% if request.resolver_match.url_name == 'stories' %}active{% endif %}">
+          <span class="icon">📸</span> Stories
+        </a>
+        <a href="{% url 'explore' %}" class="sidebar-item {% if request.resolver_match.url_name == 'explore' or request.resolver_match.url_name == 'hashtag_posts' %}active{% endif %}">
+          <span class="icon">🔥</span> Explore
+        </a>
+        <a href="{% url 'saved_posts' %}" class="sidebar-item {% if request.resolver_match.url_name == 'saved_posts' %}active{% endif %}">
+          <span class="icon">🔖</span> Saved
+        </a>
+        <a href="{% url 'profile_viewers' %}" class="sidebar-item {% if request.resolver_match.url_name == 'profile_viewers' %}active{% endif %}">
+          <span class="icon">👀</span> Profile Viewers
+        </a>
+        <a href="{% url 'edit_profile' %}" class="sidebar-item {% if request.resolver_match.url_name == 'edit_profile' %}active{% endif %}">
+          <span class="icon">⚙️</span> Settings
+        </a>
+        <a href="{% url 'logout' %}" class="sidebar-item">
+          <span class="icon">🚪</span> Logout
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="sidebar sidebar-right">
+      <div class="sidebar-card">
+        <div class="sidebar-title">👥 People You May Know</div>
+        <div class="suggestions-list" id="suggestions-list">
+          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
+          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
+          <div class="skeleton" style="height:50px;margin:.5rem;"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  {% else %}
+  {% block auth_content %}{% endblock %}
+  {% endif %}
   {% endblock %}
 
   <div id="toast-container"></div>

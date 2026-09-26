@@ -1,36 +1,97 @@
 {% extends 'social/base.html' %}
 {% block title %}Search — MiniSocial{% endblock %}
+
 {% block content %}
-<h2 style="margin-bottom: 1rem;">Search results for "{{ query }}"</h2>
 
-{% if users %}
-<h3 style="margin: 1rem 0;">👥 People</h3>
-{% for u in users %}
-<a href="{% url 'profile' u.username %}" class="post" style="display: flex; align-items: center; gap: .75rem; padding: 1rem; text-decoration: none; color: inherit;">
-  <span class="avatar">{{ u.username|first }}</span>
-  <strong>{{ u.username }}</strong>
-</a>
-{% endfor %}
-{% endif %}
+<!-- Search Box -->
+<div style="background:var(--card);border-radius:var(--radius);padding:1.5rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+  <form method="GET" action="{% url 'search' %}" style="display:flex;gap:.5rem;">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search users, posts, #hashtags..." autofocus
+           style="flex:1;padding:.9rem 1.25rem;border:2px solid var(--border);border-radius:50px;font-family:inherit;font-size:.95rem;outline:none;background:var(--bg);color:var(--text);">
+    <button type="submit" style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;padding:0 1.75rem;border-radius:50px;font-weight:800;cursor:pointer;font-family:inherit;">
+      🔍 Search
+    </button>
+  </form>
+</div>
 
-{% if posts %}
-<h3 style="margin: 1rem 0;">📝 Posts</h3>
-{% for p in posts %}
-<div class="post">
-  <div class="post-header">
-    <span class="avatar">{{ p.author.username|first }}</span>
-    <div class="post-meta">
-      <span class="author">{{ p.author.username }}</span>
-      <span class="time">{{ p.created_at|date:"M d, H:i" }}</span>
+{% if query %}
+
+  <!-- Users -->
+  {% if users %}
+  <div style="background:var(--card);border-radius:var(--radius);padding:1.25rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:1rem;">
+    <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;">
+      👥 People
+      <span style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;padding:.15rem .6rem;border-radius:50px;font-size:.75rem;font-weight:800;">{{ users|length }}</span>
+    </h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;">
+      {% for u in users %}
+      <a href="{% url 'profile' u.username %}" style="display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--bg);border-radius:12px;text-decoration:none;color:var(--text);transition:all .2s;border:1px solid transparent;"
+         onmouseover="this.style.borderColor='var(--primary)'"
+         onmouseout="this.style.borderColor='transparent'">
+        {% if u.profile.avatar %}
+          <img src="{{ u.profile.avatar.url }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+        {% else %}
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;flex-shrink:0;">
+            {{ u.username|first|upper }}
+          </div>
+        {% endif %}
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ u.get_full_name|default:u.username }}
+          </div>
+          <div style="color:var(--text-muted);font-size:.78rem;">@{{ u.username }}</div>
+        </div>
+      </a>
+      {% endfor %}
     </div>
   </div>
-  <p class="post-content">{{ p.content }}</p>
-  {% if p.image %}<img src="{{ p.image.url }}" class="post-image">{% endif %}
-</div>
-{% endfor %}
+  {% endif %}
+
+  <!-- Posts -->
+  {% if posts %}
+  <div style="background:var(--card);border-radius:var(--radius);padding:1.25rem;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+    <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;">
+      📝 Posts
+      <span style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;padding:.15rem .6rem;border-radius:50px;font-size:.75rem;font-weight:800;">{{ posts|length }}</span>
+    </h3>
+    {% for post in posts %}
+    <div style="padding:1rem;background:var(--bg);border-radius:12px;margin-bottom:.75rem;">
+      <div style="display:flex;align-items:center;gap:.65rem;margin-bottom:.5rem;">
+        <span style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.85rem;">
+          {{ post.author.username|first }}
+        </span>
+        <div>
+          <a href="{% url 'profile' post.author.username %}" style="font-weight:700;color:var(--text);text-decoration:none;font-size:.9rem;">
+            {{ post.author.username }}
+          </a>
+          <div style="color:var(--text-muted);font-size:.75rem;">{{ post.created_at|timesince }} ago</div>
+        </div>
+      </div>
+      <p style="line-height:1.5;margin:0;font-size:.92rem;">{{ post.content|truncatechars:200 }}</p>
+      {% if post.image %}
+        <img src="{{ post.image.url }}" style="max-height:200px;border-radius:8px;margin-top:.5rem;display:block;">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- No Results -->
+  {% if not users and not posts %}
+  <div style="background:var(--card);border-radius:var(--radius);padding:3rem 1.5rem;text-align:center;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+    <div style="font-size:4rem;margin-bottom:1rem;">🔍</div>
+    <h3 style="font-size:1.25rem;font-weight:900;margin-bottom:.5rem;">No results for "{{ query }}"</h3>
+    <p style="color:var(--text-muted);font-size:.92rem;">Try a different search term.</p>
+  </div>
+  {% endif %}
+
+{% else %}
+  <!-- Empty State — No Query -->
+  <div style="background:var(--card);border-radius:var(--radius);padding:3rem 1.5rem;text-align:center;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+    <div style="font-size:4rem;margin-bottom:1rem;">🔍</div>
+    <h3 style="font-size:1.25rem;font-weight:900;margin-bottom:.5rem;">Search MiniSocial</h3>
+    <p style="color:var(--text-muted);font-size:.92rem;">Find people, posts, and hashtags.</p>
+  </div>
 {% endif %}
 
-{% if not users and not posts %}
-<div class="empty"><h3>No results found</h3><p>Try a different search term.</p></div>
-{% endif %}
 {% endblock %}

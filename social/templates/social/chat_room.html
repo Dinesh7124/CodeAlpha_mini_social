@@ -1,0 +1,273 @@
+{% extends 'social/base.html' %}
+{% block title %}Chat with {{ other.username }} — MiniSocial{% endblock %}
+
+{% block content %}
+<div class="chat-panel">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <a href="{% url 'profile' other.username %}" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit;">
+      {% if other.profile.avatar %}
+        <img src="{{ other.profile.avatar.url }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--primary-light);">
+      {% else %}
+        <span class="avatar" style="width:44px;height:44px;font-size:1.1rem;">{{ other.username|first }}</span>
+      {% endif %}
+      <div class="chat-header-info">
+        <strong>{{ other.username }}</strong>
+        <small>● Active now</small>
+      </div>
+    </a>
+    <a href="{% url 'inbox' %}" class="nav-icon" style="text-decoration:none;">←</a>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-messages" id="chat-messages">
+    {% for m in chat_messages %}
+    <div class="chat-bubble {% if m.sender == user %}mine{% else %}theirs{% endif %}" data-id="{{ m.id }}">
+      {% if m.image %}
+        <div style="position:relative;display:inline-block;">
+          <img src="{{ m.image.url }}" style="max-width:240px;border-radius:10px;margin-bottom:.35rem;display:block;cursor:pointer;" onclick="openImage('{{ m.image.url }}')">
+          <a href="{{ m.image.url }}" download
+             style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:.9rem;transition:all .2s;"
+             onmouseover="this.style.background='rgba(0,0,0,0.85)'"
+             onmouseout="this.style.background='rgba(0,0,0,0.6)'"
+             title="Download image">
+            ⬇️
+          </a>
+        </div>
+      {% endif %}
+      {% if m.text %}<span>{{ m.text }}</span>{% endif %}
+      <small>{{ m.created_at|date:"H:i" }}{% if m.is_read %} ✓✓{% endif %}</small>
+    </div>
+    {% empty %}
+    <div style="text-align:center;color:var(--text-muted);margin:auto;padding:2rem;">
+      <div style="font-size:3.5rem;margin-bottom:.5rem;">👋</div>
+      <p>Say hi to <strong>{{ other.username }}</strong>!</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Input -->
+  <form class="chat-input-wrap" id="chat-form" enctype="multipart/form-data">
+    <button type="button" class="nav-icon" id="emoji-btn" title="Emoji" style="width:44px;height:44px;">😊</button>
+
+    <label class="nav-icon" for="chat-image" title="Send image/video" style="width:44px;height:44px;cursor:pointer;">
+      📎
+      <input type="file" id="chat-image" accept="image/*,video/*" hidden>
+    </label>
+
+    <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+
+    <button type="submit" style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;padding:.85rem 1.75rem;border-radius:50px;cursor:pointer;font-weight:800;font-size:.9rem;">
+      Send ➤
+    </button>
+  </form>
+
+  <!-- File preview -->
+  <div id="file-preview" style="display:none;padding:.5rem 1.25rem;background:var(--bg);border-top:1px solid var(--border);"></div>
+
+  <!-- Emoji Picker -->
+  <div id="emoji-panel" style="display:none;position:absolute;bottom:100px;left:1rem;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:.75rem;box-shadow:var(--shadow-xl);z-index:50;max-width:340px;">
+    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:.35rem;">
+      <button type="button" class="emoji-pick">😀</button>
+      <button type="button" class="emoji-pick">😂</button>
+      <button type="button" class="emoji-pick">❤️</button>
+      <button type="button" class="emoji-pick">😍</button>
+      <button type="button" class="emoji-pick">😢</button>
+      <button type="button" class="emoji-pick">😮</button>
+      <button type="button" class="emoji-pick">😡</button>
+      <button type="button" class="emoji-pick">👍</button>
+      <button type="button" class="emoji-pick">🙏</button>
+      <button type="button" class="emoji-pick">🎉</button>
+      <button type="button" class="emoji-pick">🔥</button>
+      <button type="button" class="emoji-pick">💯</button>
+      <button type="button" class="emoji-pick">✨</button>
+      <button type="button" class="emoji-pick">🌟</button>
+      <button type="button" class="emoji-pick">💬</button>
+      <button type="button" class="emoji-pick">🎁</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Image Lightbox Modal -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;align-items:center;justify-content:center;padding:2rem;" onclick="closeLightbox(event)">
+  <img id="lightbox-img" style="max-width:90%;max-height:90%;border-radius:12px;">
+  <a id="lightbox-download" download style="position:absolute;top:2rem;right:2rem;background:#fff;color:#000;padding:.75rem 1.25rem;border-radius:50px;font-weight:800;text-decoration:none;display:flex;align-items:center;gap:.4rem;">
+    ⬇️ Download
+  </a>
+  <button onclick="closeLightbox(event)" style="position:absolute;top:2rem;right:2rem;background:rgba(255,255,255,0.15);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:1.25rem;cursor:pointer;display:none;">×</button>
+</div>
+
+<style>
+.emoji-pick {
+  font-size: 1.5rem;
+  padding: .25rem;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all .15s;
+}
+.emoji-pick:hover { background: var(--hover); transform: scale(1.2); }
+</style>
+
+<script>
+const chatBox = document.getElementById('chat-messages');
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const imageInput = document.getElementById('chat-image');
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiPanel = document.getElementById('emoji-panel');
+const filePreview = document.getElementById('file-preview');
+const CSRF = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')?.pop() || '';
+let lastId = {{ chat_messages.last.id|default:0 }};
+
+chatBox.scrollTop = chatBox.scrollHeight;
+
+// ============ APPEND MESSAGE ============
+function appendMessage(msg, isMine) {
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + (isMine ? 'mine' : 'theirs');
+  div.dataset.id = msg.id;
+
+  if (msg.image) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;display:inline-block;';
+    const isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(msg.image);
+    if (isVideo) {
+      wrapper.innerHTML = `
+        <video src="${msg.image}" style="max-width:240px;border-radius:10px;margin-bottom:.35rem;display:block;" controls></video>
+        <a href="${msg.image}" download style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:.9rem;" title="Download video">⬇️</a>
+      `;
+    } else {
+      wrapper.innerHTML = `
+        <img src="${msg.image}" style="max-width:240px;border-radius:10px;margin-bottom:.35rem;display:block;cursor:pointer;" onclick="openImage('${msg.image}')">
+        <a href="${msg.image}" download style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:.9rem;" title="Download image">⬇️</a>
+      `;
+    }
+    div.appendChild(wrapper);
+  }
+  if (msg.text) {
+    const span = document.createElement('span');
+    span.textContent = msg.text;
+    div.appendChild(span);
+  }
+  const small = document.createElement('small');
+  small.textContent = msg.time + (msg.is_read ? ' ✓✓' : '');
+  div.appendChild(small);
+
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// ============ SEND MESSAGE ============
+chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  const file = imageInput.files[0];
+  if (!text && !file) return;
+
+  const fd = new FormData();
+  if (text) fd.append('text', text);
+  if (file) {
+    if (file.type.startsWith('video/')) {
+      fd.append('video', file);
+    } else {
+      fd.append('image', file);
+    }
+  }
+
+  chatInput.value = '';
+  imageInput.value = '';
+  filePreview.style.display = 'none';
+  filePreview.innerHTML = '';
+
+  const res = await fetch(`/chat/{{ conv.id }}/send/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+    body: fd
+  });
+  const data = await res.json();
+  if (res.ok && data.status === 'ok') {
+    appendMessage(data, true);
+    lastId = data.id;
+  } else {
+    alert('Failed to send. Try again.');
+  }
+});
+
+// ============ FILE PREVIEW ============
+imageInput.addEventListener('change', () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  const isVideo = file.type.startsWith('video/');
+  filePreview.style.display = 'block';
+  filePreview.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <span style="font-size:1.5rem;">${isVideo ? '🎥' : '🖼️'}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${file.name}</div>
+        <div style="color:var(--text-muted);font-size:.75rem;">${sizeMB} MB</div>
+      </div>
+      <button type="button" onclick="clearFile()" style="background:#fef2f2;color:#ef4444;border:none;width:32px;height:32px;border-radius:50%;font-weight:800;cursor:pointer;">×</button>
+    </div>
+  `;
+});
+
+function clearFile() {
+  imageInput.value = '';
+  filePreview.style.display = 'none';
+  filePreview.innerHTML = '';
+}
+
+// ============ EMOJI PICKER ============
+emojiBtn.addEventListener('click', () => {
+  emojiPanel.style.display = emojiPanel.style.display === 'none' ? 'block' : 'none';
+});
+
+document.querySelectorAll('.emoji-pick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    chatInput.value += btn.textContent;
+    chatInput.focus();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#emoji-btn') && !e.target.closest('#emoji-panel')) {
+    emojiPanel.style.display = 'none';
+  }
+});
+
+// ============ IMAGE LIGHTBOX ============
+function openImage(url) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightbox-img');
+  const dl = document.getElementById('lightbox-download');
+  img.src = url;
+  dl.href = url;
+  lb.style.display = 'flex';
+}
+
+function closeLightbox(e) {
+  if (e.target.id === 'lightbox' || e.target.textContent === '×') {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+}
+
+// ============ POLL NEW MESSAGES ============
+setInterval(async () => {
+  try {
+    const res = await fetch(`/chat/{{ conv.id }}/new/?last_id=${lastId}`);
+    const data = await res.json();
+    data.messages.forEach(m => {
+      if (m.id > lastId && !m.is_mine) {
+        appendMessage(m, false);
+        lastId = m.id;
+      }
+    });
+  } catch (e) {}
+}, 2000);
+</script>
+{% endblock %}

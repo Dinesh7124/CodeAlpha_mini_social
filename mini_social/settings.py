@@ -1,11 +1,15 @@
 import os
-import dj_database_url
 from pathlib import Path
+from dotenv import load_dotenv
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file
+load_dotenv(BASE_DIR / '.env')
+
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-abc123-dev-key')
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -34,14 +38,15 @@ ROOT_URLCONF = 'mini_social.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
+    'django.template.context_processors.request',
+    'django.contrib.auth.context_processors.auth',
+    'django.contrib.messages.context_processors.messages',
+    
+],
         },
     },
 ]
@@ -81,6 +86,7 @@ CSRF_TRUSTED_ORIGINS = [
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
+# ============ LOGGING ============
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -98,7 +104,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG',
+        'level': 'INFO',
     },
     'loggers': {
         'django.request': {
@@ -106,15 +112,17 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
-
     },
 }
-# Email configuration
-# Email configuration - Gmail SMTP
+
+# ============ EMAIL CONFIGURATION (Gmail SMTP) ============
+# NOTE: Ye sirf fallback ke liye hai.
+# Aap actually Resend API use kar rahe ho (views.py mein).
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 433
+EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('support10@idsolutionsindia.com', '')
-EMAIL_HOST_PASSWORD = os.environ.get('pvlbpgonfpzixegs', '')
-DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER', 'MiniSocial <noreply@minisocial.com>')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'MiniSocial <noreply@minisocial.com>')
