@@ -760,10 +760,15 @@ def chat_room(request, conv_id):
 
     other = conv.user2 if conv.user1 == request.user else conv.user1
     conv_messages = conv.messages.all()
+
+    # Mark messages as read
     conv_messages.filter(sender=other, is_read=False).update(is_read=True)
 
     return render(request, 'social/chat_room.html', {
-        'conv': conv, 'other': other, 'chat_messages': conv_messages,
+        'conv': conv,
+        'other': other,
+        'chat_messages': conv_messages,
+        'other_is_online': other.profile.is_online,   # ← NAYA
         'unread_count': _unread(request.user),
     })
 
@@ -847,22 +852,124 @@ def chat_typing(request, conv_id):
     return JsonResponse({'status': 'ok'})
 
 
+# ============ CHAT / INBOX ============
 @login_required
 def inbox(request):
+    """Show conversations + search friends."""
     convs = Conversation.objects.filter(
         Q(user1=request.user) | Q(user2=request.user)
-    ).order_by('-created_at')
+    ).select_related('user1', 'user2', 'user1__profile', 'user2__profile')
 
-    data = []
+    conversation_data = []
     for c in convs:
         other = c.user2 if c.user1 == request.user else c.user1
         last = c.messages.last()
         unread = c.messages.filter(sender=other, is_read=False).count()
-        data.append({'conv': c, 'other': other, 'last': last, 'unread': unread})
+        conversation_data.append({
+            'conv': c,
+            'other': other,
+            'last': last,
+            'unread': unread,
+            'is_online': other.profile.is_online,      # ← ONLINE STATUS
+        })
+
+    # Sort by last message time (most recent first)
+    conversation_data.sort(
+        key=lambda x: x['last'].created_at if x['last'] else x['conv'].created_at,
+        reverse=True
+    )
+
+    friend_ids = get_friend_ids(request.user)
+    friends = User.objects.filter(
+        id__in=friend_ids
+    ).select_related('profile').order_by('username')
+
+    existing_ids = set()
+    for c in convs:
+        other = c.user2 if c.user1 == request.user else c.user1
+        existing_ids.add(other.id)
+
+    new_friends = [f for f in friends if f.id not in existing_ids]
 
     return render(request, 'social/inbox.html', {
-        'data': data,
+        'conversations': conversation_data,
+        'friends': friends,
+        'new_friends': new_friends,
         'unread_count': _unread(request.user),
+    })
+
+
+@login_required
+def chat_room(request, conv_id):
+    """Chat room with online status."""
+    conv = get_object_or_404(Conversation, id=conv_id)
+    if request.user not in [conv.user1, conv.user2]:
+        return redirect('feed')
+
+    other = conv.user2 if conv.user1 == request.user else conv.user1
+    conv_messages = conv.messages.all()
+
+    # Mark as read
+    conv_messages.filter(sender=other, is_read=False).update(is_read=True)
+
+    return render(request, 'social/chat_room.html', {
+        'conv': conv,
+        'other': other,
+        'chat_messages': conv_messages,
+        'other_is_online': other.profile.is_online,    # ← ONLINE STATUS
+        'other_last_seen': other.profile.last_seen_display,  # ← LAST SEEN TEXT
+        'unread_count': _unread(request.user),
+    })
+
+
+@login_required
+def api_search_friends(request):
+    """Search user's friends to start chat."""
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'friends': []})
+
+    friend_ids = get_friend_ids(request.user)
+    friends = User.objects.filter(
+        id__in=friend_ids,
+        username__icontains=query
+    ).select_related('profile')[:20]
+
+    return JsonResponse({
+        'friends': [
+            {
+                'id': f.id,
+                'username': f.username,
+                'full_name': f.get_full_name() or f.username,
+                'avatar': f.profile.avatar.url if f.profile.avatar else None,
+                'is_online': f.profile.is_online,      # ← ONLINE STATUS
+            } for f in friends
+        ]
+    })
+
+
+@login_required
+def api_search_friends(request):
+    """Search user's friends for starting new chat."""
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'friends': []})
+
+    friend_ids = get_friend_ids(request.user)
+    friends = User.objects.filter(
+        id__in=friend_ids,
+        username__icontains=query
+    ).select_related('profile')[:20]
+
+    return JsonResponse({
+        'friends': [
+            {
+                'id': f.id,
+                'username': f.username,
+                'full_name': f.get_full_name() or f.username,
+                'avatar': f.profile.avatar.url if f.profile.avatar else None,
+            } for f in friends
+        ]
     })
 
 

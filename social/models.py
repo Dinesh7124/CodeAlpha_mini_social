@@ -28,6 +28,9 @@ class Profile(models.Model):
     email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ← NAYA FIELD — track user activity
+    last_seen = models.DateTimeField(default=timezone.now)
+
     def __str__(self):
         return self.user.username
 
@@ -51,6 +54,30 @@ class Profile(models.Model):
     def can_moderate(self):
         return self.is_moderator
 
+    # ← NAYA PROPERTY — online check
+    @property
+    def is_online(self):
+        """User is online if last_seen within 5 minutes."""
+        if not self.last_seen:
+            return False
+        return timezone.now() - self.last_seen < timedelta(minutes=5)
+
+    @property
+    def last_seen_display(self):
+        """Human-friendly last seen text."""
+        if self.is_online:
+            return 'Online'
+        if not self.last_seen:
+            return 'Offline'
+        delta = timezone.now() - self.last_seen
+        if delta < timedelta(minutes=1):
+            return 'Just now'
+        if delta < timedelta(hours=1):
+            return f'{delta.seconds // 60}m ago'
+        if delta < timedelta(days=1):
+            return f'{delta.seconds // 3600}h ago'
+        return f'{delta.days}d ago'
+
 
 # ==================== PASSWORD RESET OTP ====================
 class PasswordResetOTP(models.Model):
@@ -68,7 +95,6 @@ class PasswordResetOTP(models.Model):
 
 # ==================== POST DRAFT ====================
 class PostDraft(models.Model):
-    """Save post as draft - complete later."""
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drafts')
     content = models.TextField(blank=True, max_length=1000)
     image = models.ImageField(upload_to='drafts/', blank=True, null=True)
@@ -389,7 +415,6 @@ class ProfileView(models.Model):
 
 # ==================== BOOKMARK COLLECTION ====================
 class Collection(models.Model):
-    """Bookmark collection - organize saved posts into folders."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collections')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, max_length=300)
@@ -409,7 +434,6 @@ class Collection(models.Model):
 
 
 class CollectionItem(models.Model):
-    """Post inside a collection."""
     collection = models.ForeignKey(Collection, on_delete=models.CASCADE, related_name='items')
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='in_collections')
     added_at = models.DateTimeField(auto_now_add=True)

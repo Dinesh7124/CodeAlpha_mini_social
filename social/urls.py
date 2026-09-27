@@ -58,6 +58,7 @@ path('api/draft/<int:draft_id>/delete/', views.delete_draft, name='delete_draft'
     path('chat/<int:conv_id>/send/', views.chat_send_message, name='chat_send_message'),
     path('chat/<int:conv_id>/new/', views.get_new_messages, name='get_new_messages'),
     path('chat/<int:conv_id>/typing/', views.chat_typing, name='chat_typing'),
+    path('api/friends/search/', views.api_search_friends, name='api_search_friends'),  # ← NAYA
 
     # ============ STORIES ============
     path('stories/', views.stories_view, name='stories'),

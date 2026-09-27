@@ -90,8 +90,14 @@
   {% if post.content %}<p class="post-content">{{ post.content }}</p>{% endif %}
   {% if post.image %}<img src="{{ post.image.url }}" class="post-image" loading="lazy">{% endif %}
   <div class="post-actions">
-    <span class="action-btn">❤️ {{ post.likes_count }}</span>
-    <span class="action-btn">💬 {{ post.comments_count }}</span>
+    <span class="action-btn">
+      <span class="reaction-icon">👍</span>
+      <span class="reaction-count">{{ post.reactions_count }}</span>
+    </span>
+    <span class="action-btn">
+      <span class="reaction-icon">💬</span>
+      <span class="reaction-count">{{ post.comments_count }}</span>
+    </span>
   </div>
 </div>
 {% empty %}

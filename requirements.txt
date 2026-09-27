@@ -1,8 +1,10 @@
 asgiref==3.8.1
 certifi==2026.7.22
 charset-normalizer==3.5.1
+cloudinary==1.40.0
 dj-database-url==2.2.0
 Django==4.2.16
+django-cloudinary-storage==0.3.0
 gunicorn==22.0.0
 idna==3.20
 packaging==26.3
@@ -11,10 +13,9 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 requests==2.34.2
 resend==2.47.0
+six==1.17.0
 sqlparse==0.5.1
 typing_extensions==4.16.0
 tzdata==2024.1
 urllib3==2.8.0
 whitenoise==6.7.0
-cloudinary==1.40.0
-django-cloudinary-storage==0.3.0
