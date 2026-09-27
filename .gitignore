@@ -56,4 +56,4 @@ desktop.ini
 
 # ============ CLOUDINARY / SECRETS ============
 *.pem
-*.key
+*.key.vs/ 
